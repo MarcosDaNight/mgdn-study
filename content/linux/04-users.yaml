@@ -1,0 +1,87 @@
+icon: "👤"
+id: linux-users
+title: { pt: "Usuários e acesso", en: "Users and access" }
+items:
+  - id: linux-useradd
+    type: command
+    q:
+      pt: "Crie o usuário `ana` com diretório home e o shell `/bin/bash`."
+      en: "Create user `ana` with a home directory and the `/bin/bash` shell."
+    answer: [useradd, "-m", "-s", /bin/bash, ana]
+    alts:
+      - [useradd, "-s", /bin/bash, "-m", ana]
+      - [useradd, "-ms", /bin/bash, ana]
+    extra: [adduser, passwd, "-G", usermod, "-r", "-ms"]
+    why:
+      pt: "Sem `-m` o `useradd` **não** cria o home em várias distribuições. Depois defina a senha com `passwd ana`. O `adduser` (Debian/Ubuntu) é um script interativo mais amigável."
+      en: "Without `-m`, `useradd` does **not** create the home on many distributions. Then set the password with `passwd ana`. `adduser` (Debian/Ubuntu) is a friendlier interactive script."
+    src: https://man7.org/linux/man-pages/man8/useradd.8.html
+  - id: linux-passwd-shadow
+    type: card
+    q:
+      pt: "O que há em `/etc/passwd`, `/etc/shadow` e `/etc/group`?"
+      en: "What is in `/etc/passwd`, `/etc/shadow` and `/etc/group`?"
+    a:
+      pt: "`/etc/passwd`: um usuário por linha (nome, UID, GID, home, shell), legível por todos e **sem senha**. `/etc/shadow`: os **hashes** das senhas e prazos, legível só pelo root. `/etc/group`: os grupos e seus membros."
+      en: "`/etc/passwd`: one user per line (name, UID, GID, home, shell), world-readable and **without passwords**. `/etc/shadow`: the password **hashes** and expiry, readable only by root. `/etc/group`: the groups and their members."
+    src: https://man7.org/linux/man-pages/man5/passwd.5.html
+  - id: linux-usermod-ag
+    type: command
+    q:
+      pt: "Adicione `ana` ao grupo `docker` **sem remover** os outros grupos dela."
+      en: "Add `ana` to the `docker` group **without removing** her other groups."
+    answer: [usermod, "-aG", docker, ana]
+    alts:
+      - [usermod, "-a", "-G", docker, ana]
+      - [usermod, "-Ga", docker, ana]
+    extra: ["-G", groupadd, useradd, gpasswd, "-a", "-Ga"]
+    why:
+      pt: "O `-a` (*append*) é essencial: `usermod -G docker ana` **substitui** todos os grupos suplementares dela. A pessoa precisa abrir uma nova sessão para o grupo valer."
+      en: "The `-a` (*append*) is essential: `usermod -G docker ana` **replaces** all her supplementary groups. She needs a new session for the group to apply."
+    src: https://man7.org/linux/man-pages/man8/usermod.8.html
+  - id: linux-sudo
+    type: choice
+    q:
+      pt: "Como editar o `/etc/sudoers` com segurança?"
+      en: "How do you safely edit `/etc/sudoers`?"
+    options:
+      pt: ["Com `visudo`, que valida a sintaxe antes de salvar", "Com qualquer editor, como `vim /etc/sudoers`", "Com `chmod 777 /etc/sudoers` e depois editar", "Não se edita: é gerado pelo sistema"]
+      en: ["With `visudo`, which validates the syntax before saving", "With any editor, like `vim /etc/sudoers`", "With `chmod 777 /etc/sudoers` and then editing", "You do not: it is system-generated"]
+    correct: 0
+    why:
+      pt: "Um erro de sintaxe no `sudoers` pode **trancar** o `sudo` para todo mundo. O `visudo` bloqueia o arquivo e checa antes de gravar. Prefira arquivos em `/etc/sudoers.d/` para regras próprias."
+      en: "A syntax error in `sudoers` can **lock out** `sudo` for everyone. `visudo` locks the file and checks before writing. Prefer files under `/etc/sudoers.d/` for your own rules."
+    src: https://man7.org/linux/man-pages/man8/visudo.8.html
+  - id: linux-ssh-key-flow
+    type: order
+    q:
+      pt: "Configure login por **chave SSH** em um servidor. Ordene os passos."
+      en: "Set up **SSH key** login on a server. Put the steps in order."
+    steps:
+      pt:
+        - "Gerar o par de chaves na sua máquina: `ssh-keygen -t ed25519`"
+        - "Enviar a chave pública ao servidor: `ssh-copy-id ana@servidor`"
+        - "Testar o login por chave: `ssh ana@servidor`"
+        - "Desativar a senha no servidor (`PasswordAuthentication no` no `sshd_config`) e recarregar o `sshd`"
+      en:
+        - "Generate the key pair on your machine: `ssh-keygen -t ed25519`"
+        - "Send the public key to the server: `ssh-copy-id ana@server`"
+        - "Test key login: `ssh ana@server`"
+        - "Disable passwords on the server (`PasswordAuthentication no` in `sshd_config`) and reload `sshd`"
+    why:
+      pt: "Só desligue a senha **depois** de testar a chave, ou você se tranca fora. A chave **privada** nunca sai da sua máquina; a pública vai para `~/.ssh/authorized_keys` do servidor."
+      en: "Only turn passwords off **after** testing the key, or you lock yourself out. The **private** key never leaves your machine; the public one goes into the server's `~/.ssh/authorized_keys`."
+    src: https://man7.org/linux/man-pages/man1/ssh-copy-id.1.html
+  - id: linux-ssh-perms
+    type: choice
+    q:
+      pt: "O login por chave não funciona e o log do `sshd` reclama de permissões. O que ajustar?"
+      en: "Key login does not work and the `sshd` log complains about permissions. What do you adjust?"
+    options:
+      pt: ["`~/.ssh` com 700 e `authorized_keys` com 600", "`~/.ssh` com 777 para o sshd conseguir ler", "`authorized_keys` com 666", "O home precisa ser do root"]
+      en: ["`~/.ssh` at 700 and `authorized_keys` at 600", "`~/.ssh` at 777 so sshd can read it", "`authorized_keys` at 666", "The home must be owned by root"]
+    correct: 0
+    why:
+      pt: "Por padrão (`StrictModes yes`) o `sshd` ignora chaves se o diretório ou o arquivo forem graváveis por outros. A chave **privada** (`id_ed25519`) também precisa de 600, ou o cliente `ssh` a recusa."
+      en: "By default (`StrictModes yes`) `sshd` ignores keys if the directory or file is writable by others. The **private** key (`id_ed25519`) also needs 600, or the `ssh` client refuses it."
+    src: https://man7.org/linux/man-pages/man5/sshd_config.5.html

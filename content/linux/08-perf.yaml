@@ -1,0 +1,70 @@
+icon: "📈"
+id: linux-perf
+title: { pt: "Desempenho e diagnóstico", en: "Performance and diagnosis" }
+items:
+  - id: linux-load
+    type: choice
+    q:
+      pt: "Numa máquina com **4 CPUs**, o *load average* é `8.0`. O que isso indica?"
+      en: "On a machine with **4 CPUs**, the *load average* is `8.0`. What does that indicate?"
+    options:
+      pt: ["Há o dobro de tarefas prontas ou esperando I/O do que CPUs: a máquina está saturada", "A máquina está 80% ociosa", "Há 8 usuários logados", "Está tudo normal"]
+      en: ["There are twice as many runnable or I/O-waiting tasks as CPUs: the machine is saturated", "The machine is 80% idle", "8 users are logged in", "Everything is normal"]
+    correct: 0
+    why:
+      pt: "O load é a média de tarefas **rodando ou esperando** (CPU ou I/O não interrompível). Compare com o número de CPUs (`nproc`): perto de 4 em 4 CPUs é cheio; bem acima, há fila. Os três números do `uptime` são as médias de 1, 5 e 15 min."
+      en: "Load is the average number of tasks **running or waiting** (CPU or uninterruptible I/O). Compare with the CPU count (`nproc`): near 4 on 4 CPUs is full; well above means queueing. The three `uptime` numbers are the 1, 5 and 15 min averages."
+    src: https://man7.org/linux/man-pages/man1/uptime.1.html
+  - id: linux-free
+    type: card
+    q:
+      pt: "No `free -h`, que coluna mostra quanta memória está realmente disponível?"
+      en: "In `free -h`, which column shows how much memory is really available?"
+    a:
+      pt: "**available**, não *free*. O `buff/cache` é memória que o kernel usa como cache de disco e **devolve** quando um programa precisa. Memória 'livre' baixa em Linux é normal; **available** baixa (e swap crescendo) é que indica pressão."
+      en: "**available**, not *free*. `buff/cache` is memory the kernel uses as disk cache and **gives back** when a program needs it. Low 'free' memory on Linux is normal; low **available** (and growing swap) is what signals pressure."
+    src: https://man7.org/linux/man-pages/man1/free.1.html
+  - id: linux-lsof-port
+    type: command
+    q:
+      pt: "Descubra qual processo está usando a porta `8080`."
+      en: "Find out which process is using port `8080`."
+    answer: [lsof, "-i", ":8080"]
+    alts:
+      - [lsof, "-i:8080"]
+    extra: [ps, kill, netstat, "-p", ss, "-i:8080"]
+    why:
+      pt: "`lsof -i :8080` mostra comando e PID. Alternativa moderna: `ss -ltnp | grep 8080`. Útil quando um serviço não sobe com `address already in use`."
+      en: "`lsof -i :8080` shows the command and PID. Modern alternative: `ss -ltnp | grep 8080`. Handy when a service will not start with `address already in use`."
+    src: https://man7.org/linux/man-pages/man8/lsof.8.html
+  - id: linux-vmstat-swap
+    type: choice
+    q:
+      pt: "No `vmstat 1`, as colunas `si` e `so` ficam sempre acima de zero. O que significa?"
+      en: "In `vmstat 1`, the `si` and `so` columns stay above zero all the time. What does it mean?"
+    options:
+      pt: ["O sistema está trocando páginas com o swap: falta memória", "O disco está ocioso", "A CPU está parada", "A rede está saturada"]
+      en: ["The system is paging to and from swap: memory is short", "The disk is idle", "The CPU is stalled", "The network is saturated"]
+    correct: 0
+    why:
+      pt: "`si` (swap in) e `so` (swap out) contínuos significam **thrashing**: a máquina vive movendo memória para o disco, e tudo fica lento. A solução é liberar memória ou adicionar mais. Veja também a coluna `wa` (CPU esperando I/O)."
+      en: "Sustained `si` (swap in) and `so` (swap out) mean **thrashing**: the machine keeps moving memory to disk and everything slows down. The fix is to free or add memory. Also see the `wa` column (CPU waiting on I/O)."
+    src: https://man7.org/linux/man-pages/man8/vmstat.8.html
+  - id: linux-top-keys
+    type: card
+    q:
+      pt: "Dentro do `top`, como achar quem mais consome memória e CPU por núcleo?"
+      en: "Inside `top`, how do you find the top memory consumer and per-core CPU?"
+    a:
+      pt: "**Shift+M** ordena por memória e **Shift+P** por CPU. A tecla **1** mostra cada núcleo. Colunas: `RES` é a memória real do processo; `S` o estado (`D` = esperando I/O, `Z` = zumbi). `k` envia um sinal ao processo escolhido."
+      en: "**Shift+M** sorts by memory and **Shift+P** by CPU. Key **1** shows each core. Columns: `RES` is the process's real memory; `S` the state (`D` = waiting on I/O, `Z` = zombie). `k` sends a signal to the chosen process."
+    src: https://man7.org/linux/man-pages/man1/top.1.html
+  - id: linux-strace
+    type: card
+    q:
+      pt: "Um processo está travado e sem log. Como ver o que ele está fazendo?"
+      en: "A process is hung and has no log. How do you see what it is doing?"
+    a:
+      pt: "`strace -p <pid>` mostra as **chamadas de sistema** em tempo real: preso em `read` ou `futex` indica espera; `connect` que não volta indica rede; `open` repetido com `ENOENT` indica arquivo faltando. `-f` segue filhos, `-c` resume contagem e tempo. Também veja `ls -l /proc/<pid>/fd`."
+      en: "`strace -p <pid>` shows **system calls** in real time: stuck in `read` or `futex` means waiting; a `connect` that never returns means network; repeated `open` with `ENOENT` means a missing file. `-f` follows children, `-c` summarizes counts and time. Also see `ls -l /proc/<pid>/fd`."
+    src: https://man7.org/linux/man-pages/man1/strace.1.html

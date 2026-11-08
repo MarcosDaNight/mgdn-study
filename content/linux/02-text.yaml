@@ -1,0 +1,137 @@
+icon: "🔤"
+id: linux-text
+title: { pt: "Shell e texto", en: "Shell and text" }
+items:
+  - id: linux-grep
+    type: command
+    q:
+      pt: "Procure `error`, sem diferenciar maiúsculas, em todos os arquivos de `/var/log` (recursivamente)."
+      en: "Search for `error`, case-insensitive, in every file under `/var/log` (recursively)."
+    answer: [grep, "-ri", error, /var/log]
+    alts:
+      - [grep, "-ir", error, /var/log]
+      - [grep, "-r", "-i", error, /var/log]
+      - [grep, "-i", "-r", error, /var/log]
+    extra: ["-v", "-n", find, "-c", "-ir", "-r", "-i"]
+    why:
+      pt: "`-r` desce nos diretórios e `-i` ignora maiúsculas. Outros flags: `-n` mostra o número da linha, `-v` inverte (linhas que **não** casam), `-c` conta, `-A 3`/`-B 3` mostram contexto."
+      en: "`-r` recurses into directories and `-i` ignores case. Other flags: `-n` shows the line number, `-v` inverts (lines that do **not** match), `-c` counts, `-A 3`/`-B 3` show context."
+    src: https://man7.org/linux/man-pages/man1/grep.1.html
+  - id: linux-sort-uniq
+    type: command
+    q:
+      pt: "Conte quantas vezes cada linha de `ips.txt` aparece, da mais frequente para a menos frequente."
+      en: "Count how many times each line of `ips.txt` appears, from most to least frequent."
+    answer: [sort, ips.txt, "|", uniq, "-c", "|", sort, "-rn"]
+    alts:
+      - [sort, ips.txt, "|", uniq, "-c", "|", sort, "-nr"]
+    extra: [cut, "-d", wc, "-l", head, "-nr"]
+    why:
+      pt: "O `uniq` só junta linhas **adjacentes** iguais, por isso o primeiro `sort`. `-c` conta, e o segundo `sort -rn` ordena pelo número, do maior para o menor. É o padrão para achar os IPs mais ativos num log."
+      en: "`uniq` only collapses **adjacent** duplicate lines, hence the first `sort`. `-c` counts, and the second `sort -rn` orders by number, largest first. It is the standard way to find the busiest IPs in a log."
+    src: https://man7.org/linux/man-pages/man1/uniq.1.html
+  - id: linux-redirect
+    type: card
+    q:
+      pt: "Qual a diferença entre `>`, `>>`, `2>` e `2>&1`?"
+      en: "What is the difference between `>`, `>>`, `2>` and `2>&1`?"
+    a:
+      pt: "`>` **sobrescreve** o arquivo com a saída padrão. `>>` **acrescenta**. `2>` redireciona o **erro** (stderr, descritor 2). `2>&1` manda o erro para onde a saída estiver indo. `&>` redireciona os dois. `/dev/null` descarta tudo."
+      en: "`>` **overwrites** the file with standard output. `>>` **appends**. `2>` redirects **errors** (stderr, descriptor 2). `2>&1` sends errors wherever the output is going. `&>` redirects both. `/dev/null` discards everything."
+    src: https://www.gnu.org/software/bash/manual/html_node/Redirections.html
+  - id: linux-redirect-both
+    type: command
+    q:
+      pt: "Rode `make` guardando a saída **e os erros** em `build.log`."
+      en: "Run `make` saving the output **and the errors** in `build.log`."
+    answer: [make, ">", build.log, "2>&1"]
+    alts:
+      - [make, "&>", build.log]
+    extra: ["2>", "|", ">>", tee, "&>"]
+    why:
+      pt: "A **ordem importa**: `> build.log 2>&1` primeiro aponta a saída para o arquivo, depois o erro para o mesmo lugar. Já `2>&1 > build.log` deixaria o erro no terminal."
+      en: "**Order matters**: `> build.log 2>&1` first points output to the file, then errors to the same place. `2>&1 > build.log` would leave errors on the terminal."
+    src: https://www.gnu.org/software/bash/manual/html_node/Redirections.html
+  - id: linux-awk
+    type: command
+    q:
+      pt: "Mostre só a **segunda coluna** de `data.txt` (colunas separadas por espaço)."
+      en: "Print only the **second column** of `data.txt` (space-separated columns)."
+    answer: [awk, "'{print $2}'", data.txt]
+    alts:
+      - [awk, "{print $2}", data.txt]
+    extra: [cut, "-f2", "'{print $1}'", grep, sed, "{print $2}"]
+    why:
+      pt: "`awk` divide cada linha em campos (`$1`, `$2`...; `$0` é a linha inteira). Para outro separador: `awk -F: '{print $1}' /etc/passwd` lista os nomes de usuário."
+      en: "`awk` splits each line into fields (`$1`, `$2`...; `$0` is the whole line). For another separator: `awk -F: '{print $1}' /etc/passwd` lists user names."
+    src: https://man7.org/linux/man-pages/man1/awk.1p.html
+  - id: linux-sed
+    type: command
+    q:
+      pt: "Troque **todas** as ocorrências de `foo` por `bar` em `app.conf`, editando o arquivo no lugar."
+      en: "Replace **every** occurrence of `foo` with `bar` in `app.conf`, editing the file in place."
+    answer: [sed, "-i", "'s/foo/bar/g'", app.conf]
+    alts:
+      - [sed, "-i", "s/foo/bar/g", app.conf]
+    extra: ["-n", "'s/foo/bar/'", awk, "-e", "s/foo/bar/g"]
+    why:
+      pt: "`s/antigo/novo/g`: o `g` troca todas as ocorrências da linha (sem ele, só a primeira). `-i` grava no arquivo; `-i.bak` guarda uma cópia antes. Teste sem `-i` para só ver o resultado."
+      en: "`s/old/new/g`: the `g` replaces every occurrence in the line (without it, only the first). `-i` writes to the file; `-i.bak` keeps a copy first. Test without `-i` to just see the result."
+    src: https://man7.org/linux/man-pages/man1/sed.1.html
+  - id: linux-xargs
+    type: card
+    q:
+      pt: "O que o `xargs` faz, e por que usar `-print0` com `-0`?"
+      en: "What does `xargs` do, and why use `-print0` with `-0`?"
+    a:
+      pt: "Transforma linhas da entrada em **argumentos** de outro comando: `find . -name '*.log' | xargs rm`. Com nomes que têm espaços ou aspas o pipe quebra; `find ... -print0 | xargs -0 rm` separa por caractere nulo e é seguro."
+      en: "Turns input lines into **arguments** of another command: `find . -name '*.log' | xargs rm`. With names containing spaces or quotes the pipe breaks; `find ... -print0 | xargs -0 rm` separates by a null character and is safe."
+    src: https://man7.org/linux/man-pages/man1/xargs.1.html
+  - id: linux-exit-code
+    type: choice
+    q:
+      pt: "O que `echo $?` mostra, e qual valor indica sucesso?"
+      en: "What does `echo $?` show, and which value means success?"
+    options:
+      pt: ["O código de saída do último comando; 0 é sucesso", "O PID do último comando; 0 é sucesso", "O número de erros; 1 é sucesso", "O código de saída; 1 é sucesso"]
+      en: ["The last command's exit code; 0 is success", "The last command's PID; 0 is success", "The number of errors; 1 is success", "The exit code; 1 is success"]
+    correct: 0
+    why:
+      pt: "Qualquer valor diferente de 0 é falha. É isso que `&&`, `||`, `if` e `set -e` usam. Em contêineres, o código de saída vira o `Exit Code` que você vê no `kubectl describe pod`."
+      en: "Any non-zero value is a failure. That is what `&&`, `||`, `if` and `set -e` use. In containers the exit code becomes the `Exit Code` you see in `kubectl describe pod`."
+    src: https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html
+  - id: linux-quotes
+    type: choice
+    q:
+      pt: "Com `NAME=ana`, o que `echo '$NAME'` imprime?"
+      en: "With `NAME=ana`, what does `echo '$NAME'` print?"
+    options:
+      pt: ["`$NAME`, literalmente", "`ana`", "Nada", "Um erro de sintaxe"]
+      en: ["`$NAME`, literally", "`ana`", "Nothing", "A syntax error"]
+    correct: 0
+    why:
+      pt: "Aspas **simples** não expandem nada. Aspas **duplas** expandem variáveis e `$(...)`. É por isso que, em `kubectl ... -o jsonpath='{...}'`, as aspas simples protegem o `{}` e o `$` do shell."
+      en: "**Single** quotes expand nothing. **Double** quotes expand variables and `$(...)`. That is why in `kubectl ... -o jsonpath='{...}'` single quotes protect the `{}` and `$` from the shell."
+    src: https://www.gnu.org/software/bash/manual/html_node/Quoting.html
+  - id: linux-env-export
+    type: card
+    q:
+      pt: "Por que `FOO=1` no shell não aparece num programa que você roda depois, e como resolver?"
+      en: "Why does `FOO=1` in the shell not show up in a program you run afterwards, and how do you fix it?"
+    a:
+      pt: "Sem `export`, a variável é **local ao shell**, e processos filhos não a herdam. Use `export FOO=1`, ou `FOO=1 comando` para valer só naquele comando. `env` lista as variáveis exportadas; o `PATH` define onde o shell procura executáveis."
+      en: "Without `export` the variable is **local to the shell** and child processes do not inherit it. Use `export FOO=1`, or `FOO=1 command` for just that command. `env` lists exported variables; `PATH` defines where the shell looks for executables."
+    src: https://www.gnu.org/software/bash/manual/html_node/Environment.html
+  - id: linux-tail-follow
+    type: command
+    q:
+      pt: "Acompanhe em tempo real o final do arquivo `/var/log/syslog`."
+      en: "Follow the end of `/var/log/syslog` in real time."
+    answer: [tail, "-f", /var/log/syslog]
+    alts:
+      - [tail, "-F", /var/log/syslog]
+    extra: [head, cat, less, "-n", "-F"]
+    why:
+      pt: "`-f` segue o arquivo; `-F` segue o **nome** e continua depois de uma rotação de log. `tail -n 100` mostra as últimas 100 linhas."
+      en: "`-f` follows the file; `-F` follows the **name** and keeps going after a log rotation. `tail -n 100` shows the last 100 lines."
+    src: https://man7.org/linux/man-pages/man1/tail.1.html

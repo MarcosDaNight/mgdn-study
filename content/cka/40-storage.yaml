@@ -1,0 +1,163 @@
+icon: "💾"
+id: cka-storage
+title:
+  pt: Armazenamento (10%)
+  en: Storage (10%)
+items:
+  - id: cka-pv-pvc
+    type: card
+    q:
+      pt: Qual a relação entre PV, PVC e StorageClass?
+      en: How do PV, PVC and StorageClass relate?
+    a:
+      pt: "O **PV** é o volume (recurso do cluster). O **PVC** é o pedido de um usuário, que o Kubernetes liga a um PV compatível. A **StorageClass** permite o *provisionamento dinâmico*: o PVC cria o PV sob demanda."
+      en: "The **PV** is the volume (a cluster resource). The **PVC** is a user's request, which Kubernetes binds to a matching PV. The **StorageClass** enables *dynamic provisioning*: the PVC creates the PV on demand."
+    src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+  - id: cka-accessmodes
+    type: choice
+    q:
+      pt: Qual accessMode permite que vários nós montem o volume com escrita?
+      en: Which accessMode lets many nodes mount the volume read-write?
+    options:
+      pt:
+        - ReadWriteMany
+        - ReadWriteOnce
+        - ReadOnlyMany
+        - ReadWriteOncePod
+      en:
+        - ReadWriteMany
+        - ReadWriteOnce
+        - ReadOnlyMany
+        - ReadWriteOncePod
+    correct: 0
+    why:
+      pt: "RWO: um nó escreve. RWX: vários nós escrevem (NFS, CephFS). ROX: vários só leem. RWOP: um único Pod."
+      en: "RWO: one node writes. RWX: many nodes write (NFS, CephFS). ROX: many read only. RWOP: a single Pod."
+    src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+  - id: cka-pvc-pending
+    type: card
+    q:
+      pt: Um PVC está em `Pending`. Onde olhar primeiro?
+      en: A PVC is `Pending`. Where do you look first?
+    a:
+      pt: "`kubectl describe pvc <nome>`, na seção **Events**. As causas comuns: nenhum PV compatível (tamanho, accessMode ou storageClass), StorageClass inexistente, ou `WaitForFirstConsumer` esperando um Pod que o use."
+      en: "`kubectl describe pvc <name>`, **Events** section. Common causes: no matching PV (size, accessMode or storageClass), a missing StorageClass, or `WaitForFirstConsumer` waiting for a Pod to use it."
+    src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+  - id: cka-st-reclaim
+    type: choice
+    q:
+      pt: "Com `persistentVolumeReclaimPolicy: Retain`, o que acontece com o PV quando o PVC é apagado?"
+      en: "With `persistentVolumeReclaimPolicy: Retain`, what happens to the PV when the PVC is deleted?"
+    options:
+      pt: ["O PV e os dados são mantidos (status `Released`), à espera de limpeza manual", "O PV e os dados são apagados", "O PV é reutilizado por outro PVC automaticamente", "O PVC é recriado"]
+      en: ["The PV and data are kept (status `Released`), waiting for manual cleanup", "The PV and data are deleted", "The PV is automatically reused by another PVC", "The PVC is recreated"]
+    correct: 0
+    why:
+      pt: "`Delete` apaga o volume de verdade (padrão do provisionamento dinâmico). `Retain` protege os dados. Para reaproveitar um PV `Released`, é preciso remover o `claimRef` dele."
+      en: "`Delete` really removes the volume (the dynamic-provisioning default). `Retain` protects the data. To reuse a `Released` PV you must clear its `claimRef`."
+    src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming
+  - id: cka-st-default-sc
+    type: card
+    q:
+      pt: "Um PVC sem `storageClassName` ganha armazenamento automaticamente. Como isso funciona?"
+      en: "A PVC with no `storageClassName` gets storage automatically. How does that work?"
+    a:
+      pt: "Existe uma StorageClass **padrão**, marcada com a anotação `storageclass.kubernetes.io/is-default-class: \"true\"`. Para **não** usar provisionamento dinâmico (e ligar a um PV existente), defina `storageClassName: \"\"` de forma explícita."
+      en: "There is a **default** StorageClass, marked with the annotation `storageclass.kubernetes.io/is-default-class: \"true\"`. To **not** use dynamic provisioning (and bind to an existing PV), set `storageClassName: \"\"` explicitly."
+    src: https://kubernetes.io/docs/concepts/storage/storage-classes/#default-storageclass
+  - id: cka-st-wffc
+    type: card
+    q:
+      pt: "O que faz `volumeBindingMode: WaitForFirstConsumer` e por que o PVC fica `Pending` com ele?"
+      en: "What does `volumeBindingMode: WaitForFirstConsumer` do, and why does the PVC stay `Pending` with it?"
+    a:
+      pt: "Adia a criação e o *binding* do volume até existir um **Pod que o use**, para o volume nascer na zona/nó onde o Pod foi agendado. Por isso é normal o PVC ficar `Pending` até você criar o Pod."
+      en: "It delays volume creation and binding until a **Pod uses it**, so the volume is created in the zone/node where the Pod was scheduled. So it is normal for the PVC to stay `Pending` until you create the Pod."
+    src: https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
+  - id: cka-st-expand
+    type: card
+    q:
+      pt: "Como aumentar o tamanho de um volume já em uso?"
+      en: "How do you grow a volume already in use?"
+    a:
+      pt: "A StorageClass precisa ter `allowVolumeExpansion: true`. Aí você edita o PVC e aumenta `spec.resources.requests.storage`. Só dá para **aumentar**, nunca reduzir. Alguns drivers expandem o sistema de arquivos com o Pod rodando; outros pedem reinício."
+      en: "The StorageClass must have `allowVolumeExpansion: true`. Then you edit the PVC and raise `spec.resources.requests.storage`. You can only **grow**, never shrink. Some drivers expand the filesystem with the Pod running; others need a restart."
+    src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#expanding-persistent-volumes-claims
+  - id: cka-st-emptydir
+    type: choice
+    q:
+      pt: "Quando os dados de um volume `emptyDir` são apagados?"
+      en: "When is the data in an `emptyDir` volume deleted?"
+    options:
+      pt: ["Quando o **Pod** é removido do nó (reiniciar o contêiner não apaga)", "Quando o contêiner reinicia", "Nunca", "Quando o nó reinicia, mas só então"]
+      en: ["When the **Pod** is removed from the node (a container restart does not delete it)", "When the container restarts", "Never", "When the node reboots, and only then"]
+    correct: 0
+    why:
+      pt: "O `emptyDir` vive o tempo do Pod: serve de espaço temporário e para compartilhar arquivos entre contêineres do mesmo Pod. Para dados que sobrevivem ao Pod, use PVC."
+      en: "`emptyDir` lives as long as the Pod: scratch space and a way to share files between containers of the same Pod. For data that outlives the Pod use a PVC."
+    src: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir
+  - id: cka-st-pod-pvc
+    type: order
+    q:
+      pt: "Dar armazenamento persistente a um Pod sem provisionamento dinâmico. Ordene."
+      en: "Give a Pod persistent storage without dynamic provisioning. Put in order."
+    steps:
+      pt:
+        - "Criar o **PV** (o volume, com tamanho e `accessModes`)"
+        - "Criar o **PVC** pedindo tamanho e `accessModes` compatíveis"
+        - "Esperar o PVC ficar `Bound` (`kubectl get pvc`)"
+        - "No Pod, declarar o volume com `persistentVolumeClaim.claimName` e montar com `volumeMounts`"
+      en:
+        - "Create the **PV** (the volume, with size and `accessModes`)"
+        - "Create the **PVC** requesting a compatible size and `accessModes`"
+        - "Wait for the PVC to become `Bound` (`kubectl get pvc`)"
+        - "In the Pod, declare the volume with `persistentVolumeClaim.claimName` and mount it with `volumeMounts`"
+    why:
+      pt: "O Pod nunca referencia o PV: referencia o **PVC**. O desacoplamento permite trocar o armazenamento por baixo sem mudar o Pod."
+      en: "The Pod never references the PV: it references the **PVC**. This decoupling lets you swap the storage underneath without changing the Pod."
+    src: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/
+  - id: cka-st-pvc-size
+    type: choice
+    q:
+      pt: "Este PVC fica `Pending` para sempre, e o PV abaixo existe. Qual é a causa?"
+      en: "This PVC stays `Pending` forever, and the PV below exists. What is the cause?"
+    code: |
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: pv-data
+      spec:
+        capacity:
+          storage: 1Gi
+        accessModes: [ReadWriteOnce]
+        storageClassName: manual
+        hostPath:
+          path: /mnt/data
+      ---
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: manual
+        resources:
+          requests:
+            storage: 5Gi
+    options:
+      pt: ["O PVC pede 5Gi e o PV tem só 1Gi: nenhum PV serve", "O `accessModes` está errado", "O `storageClassName` precisa ser `default`", "O PV precisa de `replicas`"]
+      en: ["The PVC asks for 5Gi and the PV only has 1Gi: no PV fits", "`accessModes` is wrong", "`storageClassName` must be `default`", "The PV needs `replicas`"]
+    correct: 0
+    why:
+      pt: "Para o *binding*, o PV precisa ter capacidade **igual ou maior** que a pedida, além de `accessModes` e `storageClassName` compatíveis. `kubectl describe pvc` mostra isso nos Events."
+      en: "To bind, the PV must have capacity **equal to or larger than** requested, plus compatible `accessModes` and `storageClassName`. `kubectl describe pvc` shows it in Events."
+    src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#binding
+  - id: cka-st-sts
+    type: card
+    q:
+      pt: "Como um StatefulSet dá disco próprio a cada réplica?"
+      en: "How does a StatefulSet give each replica its own disk?"
+    a:
+      pt: "Com `volumeClaimTemplates`: o StatefulSet cria um PVC por réplica (`data-web-0`, `data-web-1`...). Se o Pod `web-0` for recriado, ele volta com o **mesmo PVC**. Os PVCs **não** são apagados quando você reduz as réplicas."
+      en: "With `volumeClaimTemplates`: the StatefulSet creates one PVC per replica (`data-web-0`, `data-web-1`...). If Pod `web-0` is recreated, it comes back with the **same PVC**. PVCs are **not** deleted when you scale down."
+    src: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#volume-claim-templates

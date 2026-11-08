@@ -1,5 +1,9 @@
 // `npm run check:content`: falha se algum item do currículo estiver incompleto.
-import { loadTracks } from '../src/lib/server/content.js';
-const t = loadTracks();
-const n = t.reduce((s, x) => s + x.units.reduce((a, u) => a + u.items.length, 0), 0);
-console.log(`ok: ${t.length} trilhas, ${n} itens`);
+import { getTracks, allItems } from '../src/lib/server/content.js';
+
+const tracks = getTracks();
+for (const t of tracks) {
+  const n = t.units.reduce((s, u) => s + u.items.length, 0);
+  console.log(`${t.track.padEnd(8)} ${String(n).padStart(3)} itens em ${t.units.length} unidades`);
+}
+console.log(`ok: ${allItems().length} itens`);

@@ -90,3 +90,11 @@ Requer Node ≥ 22.13 (usa o `node:sqlite` embutido, sem dependência nativa).
 O CI builda, roda o Trivy (bloqueia CRITICAL com correção), faz um smoke test em `/healthz` e,
 na `main`, publica em `ghcr.io/marcosdanight/mgdn-study`. O digest sai no resumo do job; é ele
 que a plataforma fixa no `compose.yaml`.
+
+## Licença
+
+O código é [MIT](LICENSE). O texto do currículo em [`content/`](content) é original, mas
+resume e cita a documentação do Kubernetes, que é
+[CC BY 4.0](https://github.com/kubernetes/website/blob/main/LICENSE): por isso cada item
+aponta para a página de origem em `src`. As páginas de manual (man7.org) e as demais fontes
+são apenas referenciadas por link.

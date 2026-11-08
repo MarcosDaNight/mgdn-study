@@ -3,9 +3,18 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
+    groups:
+      # SvelteKit, Svelte e Vite têm versões que só funcionam juntas: sobem numa PR só,
+      # e o CI valida o conjunto (PRs separadas falham uma a uma).
+      svelte-toolchain:
+        patterns: ["svelte", "@sveltejs/*", "vite"]
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      # Só versões LTS do Node (pares) vão para produção; a troca de LTS é manual.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }

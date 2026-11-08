@@ -1,0 +1,138 @@
+icon: "🎯"
+id: cka-exam
+title: { pt: "Prova e kubectl veloz", en: "The exam and fast kubectl" }
+items:
+  - id: cka-exam-alias
+    type: command
+    q:
+      pt: "Crie o alias `k` para o `kubectl` na sessão do shell."
+      en: "Create the alias `k` for `kubectl` in the shell session."
+    answer: [alias, "k=kubectl"]
+    extra: [export, "k=kube", source, "-s"]
+    why:
+      pt: "Na prova você digita `kubectl` centenas de vezes: o alias `k` (com o autocomplete ligado ao alias) economiza minutos. O ambiente da prova costuma trazer o alias `k` configurado, mas é bom saber criar."
+      en: "In the exam you type `kubectl` hundreds of times: the `k` alias (with completion bound to it) saves minutes. The exam environment usually ships the `k` alias already, but you should know how to create it."
+    src: https://kubernetes.io/docs/reference/kubectl/quick-reference/
+  - id: cka-exam-do
+    type: card
+    q:
+      pt: "Como evitar digitar `--dry-run=client -o yaml` toda vez que precisar gerar um manifesto?"
+      en: "How do you avoid typing `--dry-run=client -o yaml` every time you need to generate a manifest?"
+    a:
+      pt: "Guarde numa variável: `export do=\"--dry-run=client -o yaml\"`. Depois: `k run web --image=nginx $do > pod.yaml`. Edite o arquivo e aplique com `k apply -f pod.yaml`."
+      en: "Store it in a variable: `export do=\"--dry-run=client -o yaml\"`. Then: `k run web --image=nginx $do > pod.yaml`. Edit the file and apply it with `k apply -f pod.yaml`."
+    src: https://kubernetes.io/docs/reference/kubectl/quick-reference/
+  - id: cka-exam-context
+    type: command
+    q:
+      pt: "A questão pede para trabalhar no cluster `k8s-prod`. Troque para o contexto `k8s-prod`."
+      en: "The task says to work on cluster `k8s-prod`. Switch to the `k8s-prod` context."
+    answer: [kubectl, config, use-context, k8s-prod]
+    extra: [get-contexts, set-context, view, "--minify", current-context]
+    why:
+      pt: "Cada questão indica o contexto a usar, e a prova tem vários clusters. Trocar antes de começar evita resolver a tarefa no cluster errado (e perder os pontos)."
+      en: "Each task states which context to use, and the exam has several clusters. Switching first keeps you from solving the task on the wrong cluster (and losing the points)."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/kubectl_config_use-context/
+  - id: cka-exam-ns
+    type: command
+    q:
+      pt: "Faça o contexto atual usar o namespace `dev` por padrão."
+      en: "Make the current context use the `dev` namespace by default."
+    answer: [kubectl, config, set-context, "--current", "--namespace=dev"]
+    alts:
+      - [kubectl, config, set-context, "--current", "--namespace", dev]
+    extra: [use-context, "-n", view, "--minify", "--namespace", "dev"]
+    why:
+      pt: "Assim você não precisa repetir `-n dev` em todo comando. Confira com `kubectl config view --minify | grep namespace`."
+      en: "That way you do not have to repeat `-n dev` on every command. Check with `kubectl config view --minify | grep namespace`."
+    src: https://kubernetes.io/docs/reference/kubectl/quick-reference/#kubectl-context-and-configuration
+  - id: cka-exam-vim
+    type: card
+    q:
+      pt: "Colar YAML no Vim bagunçou a indentação. O que configurar para editar YAML com segurança?"
+      en: "Pasting YAML into Vim broke the indentation. What should you set to edit YAML safely?"
+    a:
+      pt: "`:set ts=2 sw=2 et` (tab de 2 espaços, `expandtab`). YAML **não aceita tabs** para indentar. Ao colar, use `:set paste` antes e `:set nopaste` depois, ou deixe no `~/.vimrc`."
+      en: "`:set ts=2 sw=2 et` (2-space tabs, `expandtab`). YAML **does not allow tabs** for indentation. When pasting, use `:set paste` first and `:set nopaste` after, or put it in `~/.vimrc`."
+    src: https://yaml.org/spec/1.2.2/#61-indentation-spaces
+  - id: cka-exam-apiresources
+    type: command
+    q:
+      pt: "Liste todos os tipos de recurso da API, com os nomes curtos (`po`, `svc`, `deploy`...)."
+      en: "List all API resource types with their short names (`po`, `svc`, `deploy`...)."
+    answer: [kubectl, api-resources]
+    extra: [explain, "api-versions", get, "-A"]
+    why:
+      pt: "Mostra nome curto, grupo, se é namespaced e o `kind`. Use também para descobrir o nome certo de um recurso e escrever o `apiVersion`/`kind` do YAML."
+      en: "It shows short name, group, whether it is namespaced and the `kind`. Use it to find a resource's right name and to write the YAML `apiVersion`/`kind`."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_api-resources/
+  - id: cka-exam-jsonpath
+    type: command
+    q:
+      pt: "Mostre só o IP do Pod `web`, usando JSONPath."
+      en: "Print only the IP of Pod `web`, using JSONPath."
+    answer: [kubectl, get, pod, web, "-o", "jsonpath='{.status.podIP}'"]
+    alts:
+      - [kubectl, get, pod, web, "-o", "jsonpath={.status.podIP}"]
+    extra: ["-o", "wide", yaml, "--show-labels", "custom-columns=IP:.status.podIP", "jsonpath={.status.podIP}"]
+    why:
+      pt: "`-o jsonpath` extrai um campo sem `grep`/`awk`. Para várias linhas: `-o custom-columns=NAME:.metadata.name,IP:.status.podIP`."
+      en: "`-o jsonpath` extracts a field without `grep`/`awk`. For several rows: `-o custom-columns=NAME:.metadata.name,IP:.status.podIP`."
+    src: https://kubernetes.io/docs/reference/kubectl/jsonpath/
+  - id: cka-exam-sortby
+    type: command
+    q:
+      pt: "Liste os Pods ordenados pela data de criação."
+      en: "List Pods sorted by creation time."
+    answer: [kubectl, get, pods, "--sort-by=.metadata.creationTimestamp"]
+    alts:
+      - [kubectl, get, pods, "--sort-by", ".metadata.creationTimestamp"]
+    extra: ["-o", wide, "--show-labels", "--field-selector=status.phase=Running", "--sort-by", ".metadata.creationTimestamp"]
+    why:
+      pt: "`--sort-by` aceita qualquer caminho JSONPath. É o jeito de achar o Pod mais novo ou o evento mais recente sem ler tudo."
+      en: "`--sort-by` takes any JSONPath. It is how you find the newest Pod or latest event without reading everything."
+    src: https://kubernetes.io/docs/reference/kubectl/quick-reference/#viewing-and-finding-resources
+  - id: cka-exam-force-delete
+    type: command
+    q:
+      pt: "Apague o Pod `slow` imediatamente, sem esperar o encerramento gracioso."
+      en: "Delete Pod `slow` immediately, without waiting for graceful shutdown."
+    answer: [kubectl, delete, pod, slow, "--force", "--grace-period=0"]
+    extra: ["--now", "-A", "--all", "--wait=false"]
+    why:
+      pt: "O padrão é esperar 30 s (`terminationGracePeriodSeconds`). Na prova, `--force --grace-period=0` poupa tempo; fora dela, use com cuidado, porque não garante que o contêiner parou."
+      en: "The default waits 30 s (`terminationGracePeriodSeconds`). In the exam `--force --grace-period=0` saves time; elsewhere use it carefully because it does not guarantee the container stopped."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_delete/
+  - id: cka-exam-replace
+    type: command
+    q:
+      pt: "Você mudou um campo imutável em `pod.yaml`. Recrie o Pod a partir do arquivo em um comando só."
+      en: "You changed an immutable field in `pod.yaml`. Recreate the Pod from the file in a single command."
+    answer: [kubectl, replace, "--force", "-f", pod.yaml]
+    extra: [apply, edit, patch, "--dry-run=client"]
+    why:
+      pt: "Muitos campos de um Pod não podem ser editados. `replace --force` apaga e recria. `apply` falharia com erro de campo imutável."
+      en: "Many Pod fields cannot be edited. `replace --force` deletes and recreates. `apply` would fail with an immutable-field error."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_replace/
+  - id: cka-exam-docs
+    type: choice
+    q:
+      pt: "Que recurso você pode consultar durante a prova da CKA?"
+      en: "Which resource may you consult during the CKA exam?"
+    options:
+      pt: ["A documentação oficial do Kubernetes (kubernetes.io/docs), no navegador da prova", "Qualquer site, inclusive buscadores e fóruns", "Anotações pessoais, em papel ou em arquivos", "Um assistente de IA no segundo monitor"]
+      en: ["The official Kubernetes docs (kubernetes.io/docs), in the exam browser", "Any site, including search engines and forums", "Personal notes, on paper or in files", "An AI assistant on a second monitor"]
+    correct: 0
+    why:
+      pt: "A prova é de livro aberto só para a documentação oficial permitida pela Linux Foundation. Treine a navegar e a buscar nela (busca do site, `kubectl explain`) em vez de decorar YAML."
+      en: "The exam is open-book only for the official docs the Linux Foundation allows. Practice navigating and searching them (site search, `kubectl explain`) instead of memorizing YAML."
+    src: https://docs.linuxfoundation.org/tc-docs/certification/important-instructions-cka-ckad-and-cks
+  - id: cka-exam-strategy
+    type: card
+    q:
+      pt: "Qual a estratégia de tempo recomendada na prova prática?"
+      en: "What time strategy is recommended for the hands-on exam?"
+    a:
+      pt: "São 2 horas e a nota de aprovação é 66%. As questões têm pesos diferentes e aparecem no enunciado. Faça primeiro as rápidas e de maior peso, **marque** as difíceis e volte depois. Travar 15 minutos em uma questão de 4% custa caro."
+      en: "You get 2 hours and the passing score is 66%. Tasks have different weights shown in the prompt. Do the quick, high-weight ones first, **flag** the hard ones and come back. Getting stuck 15 minutes on a 4% task is expensive."
+    src: https://training.linuxfoundation.org/certification/certified-kubernetes-administrator-cka/

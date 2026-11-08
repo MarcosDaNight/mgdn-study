@@ -1,0 +1,70 @@
+icon: "💽"
+id: linux-disk
+title: { pt: "Disco e sistema de arquivos", en: "Disk and filesystems" }
+items:
+  - id: linux-df-du
+    type: card
+    q:
+      pt: "Qual a diferença entre `df` e `du`?"
+      en: "What is the difference between `df` and `du`?"
+    a:
+      pt: "`df -h` mostra o espaço **livre e usado por sistema de arquivos** (visão do disco). `du -sh <dir>` soma o que um **diretório** ocupa (visão dos arquivos). Quando os dois discordam, suspeite de arquivo apagado que um processo ainda mantém aberto (veja com `lsof +L1`)."
+      en: "`df -h` shows **free and used space per filesystem** (the disk view). `du -sh <dir>` sums what a **directory** occupies (the files view). When the two disagree, suspect a deleted file a process still holds open (check with `lsof +L1`)."
+    src: https://man7.org/linux/man-pages/man1/df.1.html
+  - id: linux-du-dirs
+    type: command
+    q:
+      pt: "Mostre, em formato legível, o tamanho total de cada item dentro de `/var`."
+      en: "Show, in human-readable form, the total size of each item inside `/var`."
+    answer: [du, "-sh", "/var/*"]
+    alts:
+      - [du, "-hs", "/var/*"]
+    extra: [df, "-h", ls, "-l", sort, "-hs"]
+    why:
+      pt: "`-s` resume cada argumento e `-h` usa K/M/G. Combine com `sort -h` para achar o maior: `du -sh /var/* | sort -h`. Repita descendo no diretório maior."
+      en: "`-s` summarizes each argument and `-h` uses K/M/G. Combine with `sort -h` to find the biggest: `du -sh /var/* | sort -h`. Repeat going down into the largest directory."
+    src: https://man7.org/linux/man-pages/man1/du.1.html
+  - id: linux-lsblk
+    type: command
+    q:
+      pt: "Liste os discos e partições em árvore, com os pontos de montagem."
+      en: "List disks and partitions as a tree, with mount points."
+    answer: [lsblk]
+    extra: [df, blkid, fdisk, mount, "-l"]
+    why:
+      pt: "`lsblk` mostra a hierarquia disco → partição → LVM/montagem. Para o **UUID** de cada partição (que se usa no `/etc/fstab`), `blkid` ou `lsblk -f`."
+      en: "`lsblk` shows the disk → partition → LVM/mount hierarchy. For each partition's **UUID** (used in `/etc/fstab`), `blkid` or `lsblk -f`."
+    src: https://man7.org/linux/man-pages/man8/lsblk.8.html
+  - id: linux-mount
+    type: command
+    q:
+      pt: "Monte a partição `/dev/sdb1` em `/mnt/data`."
+      en: "Mount partition `/dev/sdb1` at `/mnt/data`."
+    answer: [mount, /dev/sdb1, /mnt/data]
+    extra: [umount, "-a", "-t", ext4, fdisk]
+    why:
+      pt: "O ponto de montagem (`/mnt/data`) precisa existir. A montagem **não sobrevive ao reboot**; para isso, uma linha no `/etc/fstab`. Para desmontar: `umount /mnt/data` (o nome é `umount`, sem o `n`)."
+      en: "The mount point (`/mnt/data`) must exist. The mount **does not survive a reboot**; for that, a line in `/etc/fstab`. To unmount: `umount /mnt/data` (the name is `umount`, no `n`)."
+    src: https://man7.org/linux/man-pages/man8/mount.8.html
+  - id: linux-fstab
+    type: card
+    q:
+      pt: "Como montar um disco automaticamente no boot, sem quebrar o boot se ele faltar?"
+      en: "How do you mount a disk automatically at boot, without breaking the boot if it is missing?"
+    a:
+      pt: "Uma linha no `/etc/fstab`: `UUID=<uuid> /mnt/data ext4 defaults,nofail 0 2`. Use **UUID** (de `blkid`), e não `/dev/sdb1`, que pode mudar de nome. `nofail` evita parar no modo de emergência. **Teste antes de reiniciar** com `mount -a`."
+      en: "A line in `/etc/fstab`: `UUID=<uuid> /mnt/data ext4 defaults,nofail 0 2`. Use the **UUID** (from `blkid`), not `/dev/sdb1`, which can change names. `nofail` avoids dropping into emergency mode. **Test before rebooting** with `mount -a`."
+    src: https://man7.org/linux/man-pages/man5/fstab.5.html
+  - id: linux-inodes
+    type: choice
+    q:
+      pt: "Aparece `No space left on device`, mas `df -h` mostra bastante espaço livre. Qual a causa provável?"
+      en: "You get `No space left on device`, but `df -h` shows plenty of free space. What is the likely cause?"
+    options:
+      pt: ["Os **inodes** acabaram (milhões de arquivos pequenos): confira com `df -i`", "O disco está com defeito", "O arquivo é maior que a RAM", "O `umask` está errado"]
+      en: ["**Inodes** ran out (millions of tiny files): check with `df -i`", "The disk is faulty", "The file is larger than RAM", "The `umask` is wrong"]
+    correct: 0
+    why:
+      pt: "Cada arquivo gasta um inode, e o número deles é fixo ao criar o sistema de arquivos. Caches, sessões e logs minúsculos esgotam inodes antes do espaço. Ache o diretório culpado contando arquivos (`find <dir> | wc -l`)."
+      en: "Every file uses an inode, and their number is fixed when the filesystem is created. Caches, sessions and tiny logs exhaust inodes before space. Find the culprit directory by counting files (`find <dir> | wc -l`)."
+    src: https://man7.org/linux/man-pages/man1/df.1.html

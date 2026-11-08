@@ -1,0 +1,99 @@
+icon: "🧬"
+id: linux-kernel
+title: { pt: "Kernel e contêineres", en: "Kernel and containers" }
+items:
+  - id: linux-namespaces
+    type: card
+    q:
+      pt: "O que é, de verdade, um contêiner no Linux?"
+      en: "What really is a container on Linux?"
+    a:
+      pt: "Um **processo comum** com duas ajudas do kernel: **namespaces** (isolam o que ele *enxerga*: PIDs, rede, pontos de montagem, hostname, usuários) e **cgroups** (limitam o que ele *usa*: CPU, memória, I/O). Não há máquina virtual nem kernel próprio: todos os contêineres do nó compartilham o mesmo kernel."
+      en: "An **ordinary process** with two kernel helpers: **namespaces** (isolate what it *sees*: PIDs, network, mounts, hostname, users) and **cgroups** (limit what it *uses*: CPU, memory, I/O). There is no virtual machine or kernel of its own: all containers on the node share the same kernel."
+    src: https://man7.org/linux/man-pages/man7/namespaces.7.html
+  - id: linux-cgroups
+    type: choice
+    q:
+      pt: "Que recurso do kernel faz valer os `resources.limits` de um Pod?"
+      en: "Which kernel feature enforces a Pod's `resources.limits`?"
+    options:
+      pt: ["cgroups", "namespaces", "SELinux", "iptables"]
+      en: ["cgroups", "namespaces", "SELinux", "iptables"]
+    correct: 0
+    why:
+      pt: "O kubelet traduz limits e requests em configurações de **cgroup** para o runtime. O limite de memória vira `memory.max`; ao estourá-lo, o kernel mata o processo (OOM), que o Kubernetes mostra como `OOMKilled`."
+      en: "The kubelet turns limits and requests into **cgroup** settings for the runtime. The memory limit becomes `memory.max`; when exceeded the kernel kills the process (OOM), which Kubernetes shows as `OOMKilled`."
+    src: https://man7.org/linux/man-pages/man7/cgroups.7.html
+  - id: linux-swapoff
+    type: card
+    q:
+      pt: "Por que o kubeadm pede para desligar o **swap**, e como fazer isso de forma permanente?"
+      en: "Why does kubeadm ask you to turn **swap** off, and how do you do it permanently?"
+    a:
+      pt: "Por padrão o kubelet **se recusa a iniciar** com swap ativo, porque o swap atrapalha a contabilidade de memória e os limits dos Pods. `swapoff -a` desliga agora; para valer após o reboot, comente a linha de swap no `/etc/fstab`. (Há suporte opcional a swap nas versões recentes, mas o padrão continua sendo desligado.)"
+      en: "By default the kubelet **refuses to start** with swap on, because swap distorts memory accounting and Pod limits. `swapoff -a` turns it off now; to survive a reboot, comment out the swap line in `/etc/fstab`. (Recent versions have optional swap support, but off remains the default.)"
+    src: https://kubernetes.io/docs/concepts/cluster-administration/swap-memory-management/
+  - id: linux-ip-forward
+    type: command
+    q:
+      pt: "Ative agora o encaminhamento de pacotes IPv4 (pré-requisito de rede do Kubernetes)."
+      en: "Enable IPv4 packet forwarding right now (a Kubernetes networking prerequisite)."
+    answer: [sysctl, "-w", "net.ipv4.ip_forward=1"]
+    alts:
+      - [sysctl, "net.ipv4.ip_forward=1", "-w"]
+    extra: ["-p", "net.ipv4.ip_forward=0", "--system", cat]
+    why:
+      pt: "Sem encaminhamento o nó não repassa pacotes entre Pods de nós diferentes. `-w` vale só até o reboot. Para persistir, ponha `net.ipv4.ip_forward = 1` em um arquivo de `/etc/sysctl.d/*.conf` e rode `sysctl --system`."
+      en: "Without forwarding the node does not pass packets between Pods on different nodes. `-w` lasts only until reboot. To persist, put `net.ipv4.ip_forward = 1` in a file under `/etc/sysctl.d/*.conf` and run `sysctl --system`."
+    src: https://kubernetes.io/docs/setup/production-environment/container-runtimes/#install-and-configure-prerequisites
+  - id: linux-modprobe
+    type: command
+    q:
+      pt: "Carregue o módulo de kernel `br_netfilter`."
+      en: "Load the `br_netfilter` kernel module."
+    answer: [modprobe, br_netfilter]
+    extra: [lsmod, insmod, rmmod, overlay, "-r"]
+    why:
+      pt: "`br_netfilter` faz o tráfego das *bridges* passar pelo iptables (necessário para Services e NetworkPolicy). Confira com `lsmod | grep br_netfilter`. Para carregar no boot, liste o módulo em `/etc/modules-load.d/k8s.conf`. O `overlay` é o outro módulo exigido pelo runtime."
+      en: "`br_netfilter` makes bridge traffic pass through iptables (needed for Services and NetworkPolicy). Check with `lsmod | grep br_netfilter`. To load at boot, list the module in `/etc/modules-load.d/k8s.conf`. `overlay` is the other module the runtime requires."
+    src: https://kubernetes.io/docs/setup/production-environment/container-runtimes/#forwarding-ipv4-and-letting-iptables-see-bridged-traffic
+  - id: linux-oom-killer
+    type: card
+    q:
+      pt: "O nó ficou sem memória e um processo sumiu. Como confirmar que foi o *OOM killer* do kernel?"
+      en: "The node ran out of memory and a process vanished. How do you confirm it was the kernel's *OOM killer*?"
+    a:
+      pt: "`dmesg -T | grep -i 'killed process'` (ou `journalctl -k`) mostra `Out of memory: Killed process <pid> (nome)`. O kernel escolhe a vítima pelo `oom_score` (em `/proc/<pid>/oom_score`). No Kubernetes, o kubelet ajusta esse valor pela classe de QoS, e BestEffort morre antes."
+      en: "`dmesg -T | grep -i 'killed process'` (or `journalctl -k`) shows `Out of memory: Killed process <pid> (name)`. The kernel picks the victim by `oom_score` (in `/proc/<pid>/oom_score`). In Kubernetes the kubelet tunes this by QoS class, and BestEffort dies first."
+    src: https://man7.org/linux/man-pages/man1/dmesg.1.html
+  - id: linux-dmesg
+    type: command
+    q:
+      pt: "Mostre as mensagens do kernel com data e hora legíveis."
+      en: "Show kernel messages with human-readable timestamps."
+    answer: [dmesg, "-T"]
+    extra: ["-w", "-l", err, journalctl, "-k"]
+    why:
+      pt: "Sem `-T` o `dmesg` mostra segundos desde o boot. É onde aparecem erros de disco, falhas de driver e o OOM killer. `dmesg -w` acompanha em tempo real."
+      en: "Without `-T` `dmesg` shows seconds since boot. It is where disk errors, driver failures and the OOM killer show up. `dmesg -w` follows in real time."
+    src: https://man7.org/linux/man-pages/man1/dmesg.1.html
+  - id: linux-runtime-chain
+    type: order
+    q:
+      pt: "Do kubelet ao processo do app: ordene a cadeia que sobe um contêiner."
+      en: "From the kubelet to the app process: order the chain that starts a container."
+    steps:
+      pt:
+        - "O **kubelet** decide iniciar o Pod e fala com o runtime pela interface **CRI**"
+        - "O **containerd** baixa a imagem e prepara o sistema de arquivos"
+        - "O **runc** (runtime de baixo nível) cria os namespaces e cgroups"
+        - "O **processo do app** passa a rodar isolado dentro deles"
+      en:
+        - "The **kubelet** decides to start the Pod and talks to the runtime over the **CRI**"
+        - "**containerd** pulls the image and prepares the filesystem"
+        - "**runc** (the low-level runtime) creates the namespaces and cgroups"
+        - "The **app process** starts running isolated inside them"
+    why:
+      pt: "Saber a cadeia ajuda a achar o ponto da falha: Pod que não inicia pode ser kubelet (`journalctl -u kubelet`), runtime (`crictl`, `journalctl -u containerd`) ou o próprio app (`kubectl logs`)."
+      en: "Knowing the chain helps locate the failure: a Pod that will not start may be the kubelet (`journalctl -u kubelet`), the runtime (`crictl`, `journalctl -u containerd`) or the app itself (`kubectl logs`)."
+    src: https://kubernetes.io/docs/concepts/architecture/cri/

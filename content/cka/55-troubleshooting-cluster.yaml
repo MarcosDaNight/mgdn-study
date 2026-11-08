@@ -1,0 +1,157 @@
+icon: 🩺
+id: cka-troubleshooting-cluster
+title:
+  pt: "Diagnóstico: cluster e nós (30%)"
+  en: "Troubleshooting: cluster and nodes (30%)"
+items:
+  - id: cka-notready
+    type: card
+    q:
+      pt: Um nó está `NotReady`. Qual a investigação, do cluster ao nó?
+      en: A node is `NotReady`. What is the investigation, from cluster to node?
+    a:
+      pt: 1) `kubectl describe node` (Conditions e Events). 2) SSH no nó. 3) `systemctl status kubelet` e `journalctl -u kubelet`. 4) Confira o runtime (`systemctl status containerd`), a rede e o disco/memória. Quase sempre o kubelet parou ou não fala com o API server.
+      en: 1) `kubectl describe node` (Conditions and Events). 2) SSH to the node. 3) `systemctl status kubelet` and `journalctl -u kubelet`. 4) Check the runtime (`systemctl status containerd`), network and disk/memory. Most often the kubelet stopped or cannot reach the API server.
+    src: https://kubernetes.io/docs/tasks/debug/debug-cluster/
+  - id: cka-tc-kubelet-files
+    type: card
+    q:
+      pt: "Onde ficam a configuração do kubelet e o kubeconfig dele num nó kubeadm?"
+      en: "Where are the kubelet's configuration and its kubeconfig on a kubeadm node?"
+    a:
+      pt: "Configuração: `/var/lib/kubelet/config.yaml` (ali também está o `staticPodPath`). Credenciais para falar com a API: `/etc/kubernetes/kubelet.conf`. Flags extras do serviço: `/var/lib/kubelet/kubeadm-flags.env`. Depois de mudar, `systemctl daemon-reload && systemctl restart kubelet`."
+      en: "Configuration: `/var/lib/kubelet/config.yaml` (the `staticPodPath` is there too). Credentials to talk to the API: `/etc/kubernetes/kubelet.conf`. Extra service flags: `/var/lib/kubelet/kubeadm-flags.env`. After changing, `systemctl daemon-reload && systemctl restart kubelet`."
+    src: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/kubelet-integration/
+  - id: cka-tc-apiserver-down
+    type: order
+    q:
+      pt: "`kubectl` responde `connection refused` na porta 6443. Ordene a investigação."
+      en: "`kubectl` answers `connection refused` on port 6443. Order the investigation."
+    steps:
+      pt:
+        - "Confirmar o `server:` do kubeconfig e se o `kubelet` do control plane está ativo (`systemctl status kubelet`)"
+        - "Ver os contêineres do runtime: `crictl ps -a | grep kube-apiserver`"
+        - "Ler o motivo da queda: `crictl logs <id>`"
+        - "Corrigir o manifesto em `/etc/kubernetes/manifests/kube-apiserver.yaml` (erro de digitação, flag, caminho de certificado)"
+        - "Esperar o kubelet recriar o Pod estático e testar `kubectl get nodes`"
+      en:
+        - "Confirm the kubeconfig `server:` and that the control-plane `kubelet` is active (`systemctl status kubelet`)"
+        - "See the runtime containers: `crictl ps -a | grep kube-apiserver`"
+        - "Read why it died: `crictl logs <id>`"
+        - "Fix the manifest in `/etc/kubernetes/manifests/kube-apiserver.yaml` (typo, flag, certificate path)"
+        - "Wait for the kubelet to recreate the static Pod and test `kubectl get nodes`"
+    why:
+      pt: "Com o API server fora, `kubectl logs` não funciona: o caminho é `crictl` e o arquivo do Pod estático. O kubelet observa o diretório de manifestos e recria o Pod sozinho quando o arquivo muda."
+      en: "With the API server down `kubectl logs` does not work: the path is `crictl` and the static Pod file. The kubelet watches the manifests directory and recreates the Pod itself when the file changes."
+    src: https://kubernetes.io/docs/tasks/debug/debug-cluster/
+  - id: cka-tc-scheduler
+    type: choice
+    q:
+      pt: "Pods novos ficam `Pending` e **não há nenhum evento** `FailedScheduling`. Qual a suspeita?"
+      en: "New Pods stay `Pending` and there are **no** `FailedScheduling` events at all. What is the suspect?"
+    options:
+      pt: ["O kube-scheduler não está rodando", "O kubelet está sem disco", "O CoreDNS caiu", "O etcd tem poucos membros"]
+      en: ["The kube-scheduler is not running", "The kubelet is out of disk", "CoreDNS is down", "etcd has too few members"]
+    correct: 0
+    why:
+      pt: "Quem escreve `FailedScheduling` é o próprio scheduler. Pod `Pending` **sem nenhum evento** e **sem nó** (`NODE <none>`) sugere que ninguém tentou agendá-lo. Veja `kubectl -n kube-system get pods` e o manifesto estático."
+      en: "The scheduler itself writes `FailedScheduling`. A `Pending` Pod with **no events** and **no node** (`NODE <none>`) suggests nobody tried to schedule it. Check `kubectl -n kube-system get pods` and the static manifest."
+    src: https://kubernetes.io/docs/tasks/debug/debug-cluster/
+  - id: cka-tc-controller
+    type: card
+    q:
+      pt: "Um Deployment existe, mas não gera ReplicaSet nem Pods, e nada escala. Qual componente suspeitar?"
+      en: "A Deployment exists but generates no ReplicaSet or Pods, and nothing scales. Which component do you suspect?"
+    a:
+      pt: "O **kube-controller-manager**: é ele que roda os controladores de Deployment, ReplicaSet, Node, Job etc. Veja o Pod `kube-controller-manager-<nó>` em `kube-system` e o manifesto em `/etc/kubernetes/manifests/`."
+      en: "The **kube-controller-manager**: it runs the Deployment, ReplicaSet, Node, Job controllers and others. Look at the `kube-controller-manager-<node>` Pod in `kube-system` and the manifest in `/etc/kubernetes/manifests/`."
+    src: https://kubernetes.io/docs/concepts/architecture/controller/
+  - id: cka-tc-cert-expired
+    type: card
+    q:
+      pt: "`kubectl` falha com `x509: certificate has expired or is not yet valid`. O que fazer?"
+      en: "`kubectl` fails with `x509: certificate has expired or is not yet valid`. What do you do?"
+    a:
+      pt: "No control plane: `kubeadm certs check-expiration` para ver quais venceram, `kubeadm certs renew all` para renovar e reiniciar os Pods estáticos (o kubelet os recria ao mover os manifestos, ou reinicie-os). Depois copie o novo `admin.conf` para o seu kubeconfig. Confira também se o **relógio** do nó está certo."
+      en: "On the control plane: `kubeadm certs check-expiration` to see which expired, `kubeadm certs renew all` to renew and restart the static Pods (the kubelet recreates them when you move the manifests, or restart them). Then copy the new `admin.conf` to your kubeconfig. Also check that the node **clock** is right."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-certs/
+  - id: cka-tc-conditions
+    type: choice
+    q:
+      pt: "Qual condição de nó indica que o disco está acabando e o kubelet começará a despejar Pods?"
+      en: "Which node condition says the disk is filling up and the kubelet will start evicting Pods?"
+    options:
+      pt: [DiskPressure, MemoryPressure, PIDPressure, NetworkUnavailable]
+      en: [DiskPressure, MemoryPressure, PIDPressure, NetworkUnavailable]
+    correct: 0
+    why:
+      pt: "As condições são `Ready`, `MemoryPressure`, `DiskPressure`, `PIDPressure` e `NetworkUnavailable`. Veja-as em `kubectl describe node`. Com `DiskPressure`, o kubelet remove imagens não usadas e depois despeja Pods."
+      en: "The conditions are `Ready`, `MemoryPressure`, `DiskPressure`, `PIDPressure` and `NetworkUnavailable`. See them in `kubectl describe node`. Under `DiskPressure` the kubelet removes unused images and then evicts Pods."
+    src: https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/
+  - id: cka-tc-notready-taint
+    type: card
+    q:
+      pt: "Um nó fica `NotReady`. O que acontece com os Pods dele, e quando?"
+      en: "A node goes `NotReady`. What happens to its Pods, and when?"
+    a:
+      pt: "O control plane põe o taint `node.kubernetes.io/not-ready:NoExecute` no nó. Todo Pod ganha por padrão uma toleration de **300 segundos** (`tolerationSeconds`) para esse taint. Passado esse prazo, os Pods são **despejados** e recriados em outros nós (se tiverem um controlador)."
+      en: "The control plane puts the taint `node.kubernetes.io/not-ready:NoExecute` on the node. Every Pod gets a default toleration of **300 seconds** (`tolerationSeconds`) for that taint. After that the Pods are **evicted** and recreated on other nodes (if they have a controller)."
+    src: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#taint-based-evictions
+  - id: cka-tc-cni-broken
+    type: card
+    q:
+      pt: "Pods novos ficam em `ContainerCreating` com `failed to set up sandbox ... network plugin`. O que verificar?"
+      en: "New Pods stay in `ContainerCreating` with `failed to set up sandbox ... network plugin`. What do you check?"
+    a:
+      pt: "O **CNI**: os Pods do plugin (Calico, Cilium, Flannel) estão `Running` naquele nó? Existe configuração em `/etc/cni/net.d/` e os binários em `/opt/cni/bin/`? O CIDR de Pods do `kubeadm init` bate com o do plugin? `journalctl -u kubelet` e `kubectl describe pod` trazem a mensagem."
+      en: "The **CNI**: are the plugin Pods (Calico, Cilium, Flannel) `Running` on that node? Is there configuration in `/etc/cni/net.d/` and binaries in `/opt/cni/bin/`? Does the `kubeadm init` Pod CIDR match the plugin's? `journalctl -u kubelet` and `kubectl describe pod` carry the message."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/#my-pod-stays-waiting
+  - id: cka-tc-coredns-logs
+    type: command
+    q:
+      pt: "Veja os logs do CoreDNS, selecionando pelo label `k8s-app=kube-dns` no `kube-system`."
+      en: "View CoreDNS logs, selecting by label `k8s-app=kube-dns` in `kube-system`."
+    answer: [kubectl, logs, "-n", kube-system, "-l", "k8s-app=kube-dns"]
+    alts:
+      - [kubectl, logs, "-l", "k8s-app=kube-dns", "-n", kube-system]
+      - [kubectl, logs, "--namespace=kube-system", "--selector=k8s-app=kube-dns"]
+    extra: [describe, "-f", get, "--previous", "--namespace=kube-system", "--selector=k8s-app=kube-dns"]
+    why:
+      pt: "Os Pods do CoreDNS mantêm o label `k8s-app=kube-dns`, mesmo com o nome do Deployment sendo `coredns`. Logs com `SERVFAIL` ou `i/o timeout` apontam para o upstream ou para a rede."
+      en: "CoreDNS Pods keep the label `k8s-app=kube-dns`, even though the Deployment is named `coredns`. Logs with `SERVFAIL` or `i/o timeout` point to the upstream or the network."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/
+  - id: cka-tc-describe-node
+    type: command
+    q:
+      pt: "Veja condições, taints, recursos alocados e eventos do nó `node01`."
+      en: "See the conditions, taints, allocated resources and events of node `node01`."
+    answer: [kubectl, describe, node, node01]
+    alts:
+      - [kubectl, describe, nodes, node01]
+    extra: [get, top, "-o", wide, cordon, "nodes"]
+    why:
+      pt: "Procure **Conditions**, **Taints**, **Allocatable** e **Allocated resources** (o que está reservado, que é o que o scheduler usa) e **Events**, onde o kubelet registra problemas."
+      en: "Look at **Conditions**, **Taints**, **Allocatable** and **Allocated resources** (what is reserved, which is what the scheduler uses) and **Events**, where the kubelet logs problems."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_describe/
+  - id: cka-tc-debug-node
+    type: command
+    q:
+      pt: "Abra uma sessão de depuração no nó `node01` com a imagem `busybox`, sem SSH."
+      en: "Open a debug session on node `node01` with the `busybox` image, without SSH."
+    answer: [kubectl, debug, node/node01, "-it", "--image=busybox"]
+    alts:
+      - [kubectl, debug, "-it", node/node01, "--image=busybox"]
+    extra: [exec, ssh, run, "--target=node01"]
+    why:
+      pt: "Cria um Pod no nó, com o sistema de arquivos do host montado em `/host`. Útil quando não há SSH, mas lembre-se de apagar o Pod de depuração depois."
+      en: "It creates a Pod on the node with the host filesystem mounted at `/host`. Handy when there is no SSH, but remember to delete the debug Pod afterwards."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-running-pod/#node-shell-session
+  - id: cka-tc-health-endpoints
+    type: card
+    q:
+      pt: "Como checar a saúde do kube-apiserver pelos endpoints dele?"
+      en: "How do you check the kube-apiserver's health through its endpoints?"
+    a:
+      pt: "`/livez` (está vivo?), `/readyz` (pronto para receber tráfego?) e `/healthz` (antigo, obsoleto). Com detalhe de cada verificação: `kubectl get --raw='/readyz?verbose'`. O `/readyz` também inclui o estado da conexão com o etcd."
+      en: "`/livez` (is it alive?), `/readyz` (ready to take traffic?) and `/healthz` (legacy, deprecated). With each check's detail: `kubectl get --raw='/readyz?verbose'`. `/readyz` also covers the etcd connection."
+    src: https://kubernetes.io/docs/reference/using-api/health-checks/

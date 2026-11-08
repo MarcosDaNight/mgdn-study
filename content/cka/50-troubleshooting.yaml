@@ -1,0 +1,258 @@
+icon: 🔧
+id: cka-troubleshooting
+title:
+  pt: "Diagnóstico: aplicações (30%)"
+  en: "Troubleshooting: applications (30%)"
+items:
+  - id: cka-debug-flow
+    type: card
+    q:
+      pt: Um Pod não sobe. Qual a sequência de comandos para investigar?
+      en: A Pod will not start. What command sequence do you use to investigate?
+    a:
+      pt: "1) `kubectl get pod` (status). 2) `kubectl describe pod` (**Events**: agendamento, pull de imagem, probes). 3) `kubectl logs <pod>` (e `--previous` se reiniciou). 4) `kubectl get events --sort-by=.lastTimestamp`. Vá do mais barato ao mais caro."
+      en: "1) `kubectl get pod` (status). 2) `kubectl describe pod` (**Events**: scheduling, image pull, probes). 3) `kubectl logs <pod>` (and `--previous` if it restarted). 4) `kubectl get events --sort-by=.lastTimestamp`. Go from cheapest to costliest."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+  - id: cka-crashloop
+    type: choice
+    q:
+      pt: Um Pod está em `CrashLoopBackOff`. O que isso significa?
+      en: A Pod is in `CrashLoopBackOff`. What does that mean?
+    options:
+      pt:
+        - O contêiner inicia, falha e o kubelet o reinicia com espera crescente
+        - A imagem não foi encontrada
+        - Nenhum nó tem recursos para agendar
+        - O Pod foi apagado e está sendo recriado
+      en:
+        - The container starts, fails, and the kubelet restarts it with growing back-off
+        - The image was not found
+        - No node has resources to schedule it
+        - The Pod was deleted and is being recreated
+    correct: 0
+    why:
+      pt: É o app que está caindo (erro de configuração, dependência fora do ar, probe errada). Veja `kubectl logs --previous`. Imagem inexistente seria `ImagePullBackOff`; sem recursos, `Pending`.
+      en: The app itself is crashing (bad config, dependency down, wrong probe). Check `kubectl logs --previous`. A missing image would be `ImagePullBackOff`; no resources, `Pending`.
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+  - id: cka-logs-previous
+    type: command
+    q:
+      pt: Veja os logs da execução anterior (que caiu) do Pod `api`.
+      en: View the logs of the previous (crashed) run of Pod `api`.
+    answer:
+      - kubectl
+      - logs
+      - api
+      - --previous
+    extra:
+      - -f
+      - describe
+      - --tail=10
+      - -c
+    why:
+      pt: Sem `--previous`, você vê o contêiner novo, que muitas vezes ainda não tem nada. Em Pods com vários contêineres, acrescente `-c <nome>`.
+      en: Without `--previous` you see the new container, which often has nothing yet. For multi-container Pods add `-c <name>`.
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/
+  - id: cka-top
+    type: command
+    q:
+      pt: Mostre o consumo de CPU e memória dos nós.
+      en: Show CPU and memory usage of the nodes.
+    answer:
+      - kubectl
+      - top
+      - nodes
+    extra:
+      - pods
+      - get
+      - describe
+      - -A
+    why:
+      pt: "`kubectl top` depende do **metrics-server**. Se o comando falha com 'Metrics API not available', ele não está instalado ou não está saudável."
+      en: "`kubectl top` depends on **metrics-server**. If it fails with 'Metrics API not available', it is not installed or not healthy."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_top/
+  - id: cka-explain
+    type: command
+    q:
+      pt: Consulte a documentação do campo `spec.containers.livenessProbe` direto no terminal.
+      en: Look up the docs for the `spec.containers.livenessProbe` field right in the terminal.
+    answer:
+      - kubectl
+      - explain
+      - pod.spec.containers.livenessProbe
+    extra:
+      - describe
+      - get
+      - -o
+      - yaml
+      - --recursive
+    why:
+      pt: Na prova você pode abrir a documentação oficial, mas `kubectl explain` é mais rápido para lembrar um campo. Use `--recursive` para ver a árvore inteira.
+      en: In the exam you may open the official docs, but `kubectl explain` is faster for recalling a field. Use `--recursive` for the whole tree.
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_explain/
+  - id: cka-ts-imagepull
+    type: card
+    q:
+      pt: "Um Pod está em `ImagePullBackOff` (ou `ErrImagePull`). Quais são as causas mais comuns?"
+      en: "A Pod is in `ImagePullBackOff` (or `ErrImagePull`). What are the most common causes?"
+    a:
+      pt: "Nome ou **tag** da imagem errado; registro privado sem credencial (falta `imagePullSecrets`); registro inacessível pela rede do nó. O `kubectl describe pod` mostra a mensagem exata em **Events** (`manifest unknown`, `unauthorized`, `no such host`...)."
+      en: "Wrong image name or **tag**; a private registry with no credentials (missing `imagePullSecrets`); a registry unreachable from the node's network. `kubectl describe pod` shows the exact message under **Events** (`manifest unknown`, `unauthorized`, `no such host`...)."
+    src: https://kubernetes.io/docs/concepts/containers/images/#imagepullbackoff
+  - id: cka-ts-pending
+    type: choice
+    q:
+      pt: "Um Pod fica `Pending` e o evento diz `0/3 nodes are available: 3 Insufficient cpu`. O que significa?"
+      en: "A Pod stays `Pending` and the event says `0/3 nodes are available: 3 Insufficient cpu`. What does it mean?"
+    options:
+      pt: ["As `requests` de CPU do Pod não cabem em nenhum nó: reduza a request ou adicione capacidade", "O Pod está usando CPU demais agora", "O kubelet está parado", "A imagem não foi baixada"]
+      en: ["The Pod's CPU `requests` fit on no node: lower the request or add capacity", "The Pod is using too much CPU right now", "The kubelet is stopped", "The image was not pulled"]
+    correct: 0
+    why:
+      pt: "`Pending` com `FailedScheduling` é problema de **agendamento**: recursos, taints, `nodeSelector`/afinidade ou PVC sem volume. O motivo sempre aparece em `kubectl describe pod`, na seção Events."
+      en: "`Pending` with `FailedScheduling` is a **scheduling** problem: resources, taints, `nodeSelector`/affinity or a PVC with no volume. The reason always shows in `kubectl describe pod`, under Events."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/#my-pod-stays-pending
+  - id: cka-ts-oom
+    type: choice
+    q:
+      pt: "`kubectl describe pod` mostra `Last State: Terminated`, `Reason: OOMKilled`, `Exit Code: 137`. O que aconteceu?"
+      en: "`kubectl describe pod` shows `Last State: Terminated`, `Reason: OOMKilled`, `Exit Code: 137`. What happened?"
+    options:
+      pt: ["O contêiner passou do limit de memória e foi morto com SIGKILL", "O contêiner terminou com sucesso", "A imagem está corrompida", "O nó foi desligado"]
+      en: ["The container exceeded its memory limit and was killed with SIGKILL", "The container finished successfully", "The image is corrupted", "The node was shut down"]
+    correct: 0
+    why:
+      pt: "Códigos acima de 128 são `128 + número do sinal`: **137 = 128 + 9 (SIGKILL)**, e **143 = 128 + 15 (SIGTERM)**. A saída é aumentar o `limit` de memória ou corrigir o vazamento no app."
+      en: "Codes above 128 are `128 + signal number`: **137 = 128 + 9 (SIGKILL)** and **143 = 128 + 15 (SIGTERM)**. The fix is to raise the memory `limit` or fix the leak in the app."
+    src: https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#exceed-a-containers-memory-limit
+  - id: cka-ts-init
+    type: command
+    q:
+      pt: "O Pod `web` está em `Init:Error`. Veja os logs do init container `wait-db`."
+      en: "Pod `web` is in `Init:Error`. View the logs of init container `wait-db`."
+    answer: [kubectl, logs, web, "-c", wait-db]
+    alts:
+      - [kubectl, logs, web, "--container=wait-db"]
+      - [kubectl, logs, web, "--container", wait-db]
+    extra: ["--previous", describe, "-f", get, "--container=wait-db", "--container"]
+    why:
+      pt: "Com vários contêineres (init ou não), é preciso dizer qual com `-c`. Sem isso o `kubectl logs` pode mostrar o contêiner errado ou reclamar."
+      en: "With several containers (init or not) you must say which one with `-c`. Without it `kubectl logs` may show the wrong container or complain."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-init-containers/
+  - id: cka-ts-exec
+    type: command
+    q:
+      pt: "Abra um shell interativo dentro do Pod `web`."
+      en: "Open an interactive shell inside Pod `web`."
+    answer: [kubectl, exec, "-it", web, "--", sh]
+    alts:
+      - [kubectl, exec, "-ti", web, "--", sh]
+      - [kubectl, exec, "-it", web, "--", bash]
+    extra: [logs, bash, run, attach, "-ti"]
+    why:
+      pt: "O `--` separa os argumentos do kubectl do comando que roda no contêiner. Imagens mínimas costumam ter só `sh`; algumas (distroless) não têm shell, e aí o caminho é `kubectl debug`."
+      en: "`--` separates kubectl's arguments from the command that runs in the container. Minimal images usually only have `sh`; some (distroless) have no shell at all, and then `kubectl debug` is the way."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_exec/
+  - id: cka-ts-events
+    type: command
+    q:
+      pt: "Liste os eventos do namespace atual, do mais antigo ao mais recente."
+      en: "List the current namespace's events, oldest to newest."
+    answer: [kubectl, get, events, "--sort-by=.lastTimestamp"]
+    alts:
+      - [kubectl, get, events, "--sort-by", ".lastTimestamp"]
+    extra: ["-A", "-w", describe, "--field-selector=type=Warning", "--sort-by", ".lastTimestamp"]
+    why:
+      pt: "`get events` não vem ordenado. Com `--sort-by=.lastTimestamp` o mais recente fica no fim, perto do cursor. Eventos expiram em cerca de 1 hora."
+      en: "`get events` is not sorted. With `--sort-by=.lastTimestamp` the newest ends up last, near your cursor. Events expire after about 1 hour."
+    src: https://kubernetes.io/docs/reference/kubectl/quick-reference/#interacting-with-running-pods
+  - id: cka-ts-svc-flow
+    type: order
+    q:
+      pt: "Um Service não responde. Ordene o diagnóstico, do mais barato ao mais fundo."
+      en: "A Service does not respond. Order the diagnosis, cheapest to deepest."
+    steps:
+      pt:
+        - "Os Pods estão `Running` e `Ready`? (`kubectl get pods`)"
+        - "O Service tem **endpoints**? (`kubectl get endpoints`)"
+        - "O `selector` do Service casa com os labels dos Pods?"
+        - "O `targetPort` é a porta em que o app realmente escuta?"
+        - "O DNS resolve o nome do Service de dentro de um Pod?"
+        - "Alguma NetworkPolicy bloqueia o tráfego?"
+      en:
+        - "Are the Pods `Running` and `Ready`? (`kubectl get pods`)"
+        - "Does the Service have **endpoints**? (`kubectl get endpoints`)"
+        - "Does the Service `selector` match the Pods' labels?"
+        - "Is `targetPort` the port the app really listens on?"
+        - "Does DNS resolve the Service name from inside a Pod?"
+        - "Is a NetworkPolicy blocking the traffic?"
+    why:
+      pt: "Endpoints vazios apontam para selector/labels ou para Pods não Ready. Endpoints cheios mas sem resposta apontam para `targetPort`, DNS ou NetworkPolicy."
+      en: "Empty endpoints point to selector/labels or Pods not Ready. Full endpoints but no answer point to `targetPort`, DNS or NetworkPolicy."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/
+  - id: cka-ts-selector-bug
+    type: choice
+    q:
+      pt: "Os Pods estão `Running` e `Ready`, mas `kubectl get endpoints web` vem vazio. Por quê?"
+      en: "The Pods are `Running` and `Ready`, but `kubectl get endpoints web` is empty. Why?"
+    code: |
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: web
+      spec:
+        selector:
+          app: web
+        ports:
+          - port: 80
+      ---
+      # Pods criados pelo Deployment têm:
+      #   labels: { app: webapp }
+    options:
+      pt: ["O `selector` pede `app: web`, mas os Pods têm `app: webapp`", "Falta `type: ClusterIP`", "A porta 80 é reservada", "O Service precisa estar em `kube-system`"]
+      en: ["The `selector` asks for `app: web` but the Pods have `app: webapp`", "`type: ClusterIP` is missing", "Port 80 is reserved", "The Service must be in `kube-system`"]
+    correct: 0
+    why:
+      pt: "O Service só encaminha para Pods cujos labels casam **exatamente** com o selector. Corrija o selector (ou os labels) e os endpoints aparecem na hora."
+      en: "A Service only routes to Pods whose labels match its selector **exactly**. Fix the selector (or the labels) and the endpoints appear immediately."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/#my-service-has-no-endpoints
+  - id: cka-ts-refused-timeout
+    type: card
+    q:
+      pt: "Qual a diferença, ao diagnosticar, entre *connection refused* e *timeout*?"
+      en: "When diagnosing, what is the difference between *connection refused* and *timeout*?"
+    a:
+      pt: "**Refused**: o pacote chegou, mas **nada escuta** naquela porta (app fora do ar, `targetPort` errado). **Timeout**: o pacote **nem chegou** ou foi descartado (NetworkPolicy, firewall, rota, Pod inexistente). Isso já diz se o problema está no app ou na rede."
+      en: "**Refused**: the packet arrived but **nothing listens** on that port (app down, wrong `targetPort`). **Timeout**: the packet **never arrived** or was dropped (NetworkPolicy, firewall, route, nonexistent Pod). That already tells you whether the problem is the app or the network."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/
+  - id: cka-ts-debug
+    type: command
+    q:
+      pt: "O Pod `web` não tem shell. Anexe um contêiner efêmero `busybox` ao contêiner `web` para investigar."
+      en: "Pod `web` has no shell. Attach an ephemeral `busybox` container targeting container `web` to investigate."
+    answer: [kubectl, debug, "-it", web, "--image=busybox", "--target=web"]
+    alts:
+      - [kubectl, debug, "-it", web, "--target=web", "--image=busybox"]
+    extra: [exec, run, "--copy-to=web-copy", attach]
+    why:
+      pt: "`kubectl debug` injeta um **contêiner efêmero** no Pod em execução, sem reiniciá-lo. `--target` compartilha o namespace de processos com o contêiner alvo. Também existe `--copy-to` para depurar uma cópia."
+      en: "`kubectl debug` injects an **ephemeral container** into the running Pod without restarting it. `--target` shares the process namespace with the target container. There is also `--copy-to` to debug a copy."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-running-pod/#ephemeral-container
+  - id: cka-ts-no-pods
+    type: card
+    q:
+      pt: "Criei um Deployment, mas não aparece nenhum Pod. Por onde investigar?"
+      en: "I created a Deployment but no Pods appear. Where do I investigate?"
+    a:
+      pt: "Desça a cadeia: `kubectl get deploy,rs,pods`. Se o **ReplicaSet** existe mas não cria Pods, leia `kubectl describe rs <nome>`: as causas comuns são **quota** estourada, ServiceAccount inexistente ou um webhook de admission recusando. Se nem o ReplicaSet existe, suspeite do **controller-manager**."
+      en: "Walk down the chain: `kubectl get deploy,rs,pods`. If the **ReplicaSet** exists but creates no Pods, read `kubectl describe rs <name>`: common causes are an exceeded **quota**, a missing ServiceAccount or an admission webhook rejecting. If not even the ReplicaSet exists, suspect the **controller-manager**."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+  - id: cka-ts-probe-fail
+    type: card
+    q:
+      pt: "Como distinguir, ao olhar `kubectl get pods`, uma falha de readiness de uma de liveness?"
+      en: "Looking at `kubectl get pods`, how do you tell a readiness failure from a liveness failure?"
+    a:
+      pt: "**Readiness**: o Pod fica `Running` com `READY 0/1`, **sem reinícios**, e some dos endpoints. **Liveness**: `RESTARTS` sobe sem parar. Os dois deixam `Unhealthy` em `kubectl describe pod`, com a resposta da probe (`HTTP probe failed with statuscode: 500`, por exemplo)."
+      en: "**Readiness**: the Pod stays `Running` with `READY 0/1`, **no restarts**, and drops out of endpoints. **Liveness**: `RESTARTS` keeps climbing. Both leave `Unhealthy` in `kubectl describe pod`, with the probe response (`HTTP probe failed with statuscode: 500`, for instance)."
+    src: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/

@@ -1,8 +1,8 @@
 // Service worker mínimo: deixa o app instalável e abre o "casco" sem rede.
 // Nada de dados é cacheado aqui: respostas e progresso sempre vão ao servidor.
-const CACHE = 'shell-v1';
+const CACHE = 'shell-v2';
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/icon.svg', '/manifest.webmanifest'])));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/icon.svg', '/icon-192.png', '/manifest.webmanifest'])));
   self.skipWaiting();
 });
 self.addEventListener('activate', (e) => {

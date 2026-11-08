@@ -1,0 +1,123 @@
+icon: "📡"
+id: linux-network
+title:
+  pt: Rede
+  en: Networking
+items:
+  - id: linux-ss
+    type: command
+    q:
+      pt: Liste as portas TCP em escuta, com o processo dono de cada uma.
+      en: List listening TCP ports with the owning process.
+    answer:
+      - ss
+      - -tlnp
+    extra:
+      - netstat
+      - -ua
+      - -s
+    why:
+      pt: "`-t` TCP, `-l` listening, `-n` sem resolver nomes, `-p` mostra o processo. O `ss` substituiu o `netstat`. Útil para confirmar que o `kube-apiserver` escuta na 6443."
+      en: "`-t` TCP, `-l` listening, `-n` no name resolution, `-p` shows the process. `ss` replaced `netstat`. Handy to confirm `kube-apiserver` listens on 6443."
+    src: https://man7.org/linux/man-pages/man8/ss.8.html
+  - id: linux-ip-addr
+    type: card
+    q:
+      pt: Que comando mostra os IPs das interfaces e qual o equivalente moderno de `ifconfig`?
+      en: Which command shows interface IPs, and what is the modern replacement for `ifconfig`?
+    a:
+      pt: "`ip addr` (ou `ip a`). O pacote `iproute2` substituiu o `net-tools`: `ip route` no lugar de `route`, `ip neigh` no lugar de `arp`."
+      en: "`ip addr` (or `ip a`). The `iproute2` package replaced `net-tools`: `ip route` instead of `route`, `ip neigh` instead of `arp`."
+    src: https://man7.org/linux/man-pages/man8/ip.8.html
+  - id: linux-dns-order
+    type: card
+    q:
+      pt: Em que arquivo um Linux guarda os servidores DNS e quais domínios completam nomes curtos?
+      en: Which file holds a Linux host's DNS servers and the search domains for short names?
+    a:
+      pt: "`/etc/resolv.conf` (`nameserver` e `search`). Dentro de um Pod, o kubelet monta um `resolv.conf` com `search <ns>.svc.cluster.local svc.cluster.local cluster.local`, por isso `meu-svc` resolve no mesmo namespace."
+      en: "`/etc/resolv.conf` (`nameserver` and `search`). Inside a Pod the kubelet mounts a `resolv.conf` with `search <ns>.svc.cluster.local svc.cluster.local cluster.local`, which is why `my-svc` resolves in the same namespace."
+    src: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+  - id: linux-curl-head
+    type: command
+    q:
+      pt: "Mostre só os cabeçalhos de resposta de `https://example.com`."
+      en: "Show only the response headers of `https://example.com`."
+    answer: [curl, "-I", "https://example.com"]
+    alts:
+      - [curl, "--head", "https://example.com"]
+    extra: ["-v", "-o", "-L", "-k", wget, "--head"]
+    why:
+      pt: "`-I` faz um HEAD. Outros flags úteis: `-v` mostra o handshake TLS e os cabeçalhos enviados, `-L` segue redirecionamentos, `-k` ignora o certificado (só para teste) e `--resolve host:443:IP` força um IP, ótimo para testar um Ingress."
+      en: "`-I` sends a HEAD. Other useful flags: `-v` shows the TLS handshake and request headers, `-L` follows redirects, `-k` ignores the certificate (testing only) and `--resolve host:443:IP` forces an IP, great for testing an Ingress."
+    src: https://curl.se/docs/manpage.html
+  - id: linux-dig
+    type: command
+    q:
+      pt: "Consulte o registro A de `example.com` perguntando diretamente ao servidor `1.1.1.1`."
+      en: "Query the A record of `example.com` asking server `1.1.1.1` directly."
+    answer: [dig, "@1.1.1.1", example.com]
+    alts:
+      - [dig, example.com, "@1.1.1.1"]
+    extra: [nslookup, "+short", A, host, ping]
+    why:
+      pt: "O `@servidor` ignora o `/etc/resolv.conf` e testa aquele DNS. `+short` mostra só a resposta. Para checar o CoreDNS de dentro de um Pod: `dig @10.96.0.10 meu-svc.default.svc.cluster.local`."
+      en: "`@server` bypasses `/etc/resolv.conf` and tests that DNS. `+short` shows only the answer. To check CoreDNS from inside a Pod: `dig @10.96.0.10 my-svc.default.svc.cluster.local`."
+    src: https://man7.org/linux/man-pages/man1/dig.1.html
+  - id: linux-ip-route
+    type: command
+    q:
+      pt: "Mostre a tabela de rotas do sistema."
+      en: "Show the system's routing table."
+    answer: [ip, route]
+    alts:
+      - [ip, r]
+      - [ip, route, show]
+    extra: [addr, link, route, neigh, netstat, "r", "show"]
+    why:
+      pt: "A linha `default via <gw> dev <if>` é a rota padrão (para onde vai o que não tem rota específica). Para ver por qual rota um destino sai: `ip route get 8.8.8.8`."
+      en: "The `default via <gw> dev <if>` line is the default route (where traffic with no specific route goes). To see which route a destination uses: `ip route get 8.8.8.8`."
+    src: https://man7.org/linux/man-pages/man8/ip-route.8.html
+  - id: linux-hosts-order
+    type: card
+    q:
+      pt: "Em que ordem o Linux resolve um nome, e onde isso é configurado?"
+      en: "In what order does Linux resolve a name, and where is that configured?"
+    a:
+      pt: "Em `/etc/nsswitch.conf`, a linha `hosts: files dns` diz: primeiro **`/etc/hosts`**, depois o **DNS** do `/etc/resolv.conf`. Por isso uma entrada no `/etc/hosts` vence o DNS, e é a primeira coisa a conferir quando um nome 'resolve errado' numa máquina só."
+      en: "In `/etc/nsswitch.conf`, the line `hosts: files dns` says: **`/etc/hosts`** first, then the **DNS** from `/etc/resolv.conf`. So an `/etc/hosts` entry beats DNS, and it is the first thing to check when a name 'resolves wrong' on one machine only."
+    src: https://man7.org/linux/man-pages/man5/nsswitch.conf.5.html
+  - id: linux-nc
+    type: command
+    q:
+      pt: "Teste se a porta TCP `6443` de `10.0.0.10` está alcançável, sem enviar dados."
+      en: "Test whether TCP port `6443` on `10.0.0.10` is reachable, without sending data."
+    answer: [nc, "-zv", "10.0.0.10", "6443"]
+    alts:
+      - [nc, "-vz", "10.0.0.10", "6443"]
+      - [nc, "-z", "-v", "10.0.0.10", "6443"]
+    extra: [ping, curl, telnet, "-u", "-l", "-vz", "-z", "-v"]
+    why:
+      pt: "`-z` só testa a conexão e `-v` mostra o resultado. O `ping` usa ICMP, que pode estar bloqueado mesmo com a porta TCP aberta (e vice-versa): para um serviço, teste a **porta**."
+      en: "`-z` only tests the connection and `-v` shows the result. `ping` uses ICMP, which can be blocked even with the TCP port open (and vice versa): for a service, test the **port**."
+    src: https://man7.org/linux/man-pages/man1/nc.1.html
+  - id: linux-iptables
+    type: card
+    q:
+      pt: "Como ver as regras que o `kube-proxy` criou para os Services num nó?"
+      en: "How do you see the rules `kube-proxy` created for Services on a node?"
+    a:
+      pt: "No modo iptables: `iptables -t nat -L KUBE-SERVICES -n` (ou `iptables-save | grep <nome-do-svc>`). Cada Service vira uma cadeia `KUBE-SVC-...`, que sorteia entre cadeias `KUBE-SEP-...`, uma por Pod (endpoint) com DNAT. No modo IPVS: `ipvsadm -Ln`."
+      en: "In iptables mode: `iptables -t nat -L KUBE-SERVICES -n` (or `iptables-save | grep <svc-name>`). Each Service becomes a `KUBE-SVC-...` chain that picks among `KUBE-SEP-...` chains, one per Pod (endpoint) with DNAT. In IPVS mode: `ipvsadm -Ln`."
+    src: https://kubernetes.io/docs/reference/networking/virtual-ips/
+  - id: linux-tcpdump
+    type: command
+    q:
+      pt: "Capture, em todas as interfaces, o tráfego da porta `53`."
+      en: "Capture traffic on port `53`, on all interfaces."
+    answer: [tcpdump, "-i", any, port, "53"]
+    extra: ["-n", host, "-w", udp, "-c"]
+    why:
+      pt: "Útil para ver se as consultas DNS saem do nó e se chegam respostas. `-n` evita resolver nomes (mais rápido), `-w arquivo.pcap` grava para abrir no Wireshark. Exige root."
+      en: "Useful to see whether DNS queries leave the node and whether replies arrive. `-n` skips name resolution (faster), `-w file.pcap` writes a file to open in Wireshark. Needs root."
+    src: https://www.tcpdump.org/manpages/tcpdump.1.html

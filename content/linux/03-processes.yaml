@@ -1,0 +1,134 @@
+icon: "⚙️"
+id: linux-processes
+title:
+  pt: Processos e systemd
+  en: Processes and systemd
+items:
+  - id: linux-sigterm
+    type: choice
+    q:
+      pt: Qual sinal `kill <pid>` envia por padrão, e por que ele é preferível ao `kill -9`?
+      en: Which signal does `kill <pid>` send by default, and why is it preferable to `kill -9`?
+    options:
+      pt:
+        - "SIGTERM: o processo pode limpar recursos e encerrar"
+        - "SIGKILL: encerra na hora"
+        - "SIGHUP: recarrega a configuração"
+        - "SIGSTOP: pausa o processo"
+      en:
+        - "SIGTERM: the process can clean up and exit"
+        - "SIGKILL: terminates immediately"
+        - "SIGHUP: reloads the configuration"
+        - "SIGSTOP: pauses the process"
+    correct: 0
+    why:
+      pt: "SIGTERM (15) pode ser tratado: o processo fecha arquivos e conexões. SIGKILL (9) não pode ser capturado e deixa lixo para trás. Tente TERM primeiro."
+      en: "SIGTERM (15) can be handled: the process closes files and connections. SIGKILL (9) cannot be caught and leaves a mess. Try TERM first."
+    src: https://man7.org/linux/man-pages/man7/signal.7.html
+  - id: linux-systemctl-status
+    type: command
+    q:
+      pt: Veja o estado do serviço `kubelet` pelo systemd.
+      en: Check the state of the `kubelet` service in systemd.
+    answer:
+      - systemctl
+      - status
+      - kubelet
+    extra:
+      - service
+      - restart
+      - enable
+      - journalctl
+      - -u
+    why:
+      pt: "`systemctl status` mostra se está ativo, o PID e as últimas linhas de log. É o primeiro comando quando um nó está `NotReady`."
+      en: "`systemctl status` shows whether it is active, the PID and the last log lines. It is the first command when a node is `NotReady`."
+    src: https://man7.org/linux/man-pages/man1/systemctl.1.html
+  - id: linux-journalctl
+    type: command
+    q:
+      pt: Acompanhe ao vivo os logs do `kubelet`.
+      en: Follow the `kubelet` logs live.
+    answer:
+      - journalctl
+      - -u
+      - kubelet
+      - -f
+    extra:
+      - tail
+      - -n
+      - -xe
+      - systemctl
+    why:
+      pt: "`-u` filtra por unit e `-f` segue novas linhas (como `tail -f`). Nos nós, o kubelet roda como serviço, então o log dele está no journal, não em `kubectl logs`."
+      en: "`-u` filters by unit and `-f` follows new lines (like `tail -f`). On nodes the kubelet runs as a service, so its log is in the journal, not in `kubectl logs`."
+    src: https://man7.org/linux/man-pages/man1/journalctl.1.html
+  - id: linux-ps
+    type: command
+    q:
+      pt: "Liste todos os processos do sistema em formato detalhado."
+      en: "List every process on the system in a detailed format."
+    answer: [ps, aux]
+    alts:
+      - [ps, "-ef"]
+      - [ps, "-aux"]
+    extra: [top, kill, "-9", pstree, "-ef", "-aux"]
+    why:
+      pt: "`ps aux` mostra usuário, %CPU, %MEM, estado e comando. Estados em `STAT`: `S` dormindo, `R` rodando, `D` esperando I/O (não interrompível), `Z` zumbi. Para filtrar: `ps aux | grep nginx`."
+      en: "`ps aux` shows user, %CPU, %MEM, state and command. States in `STAT`: `S` sleeping, `R` running, `D` waiting on I/O (uninterruptible), `Z` zombie. To filter: `ps aux | grep nginx`."
+    src: https://man7.org/linux/man-pages/man1/ps.1.html
+  - id: linux-signals
+    type: card
+    q:
+      pt: "Quais sinais você precisa conhecer e o que cada um faz?"
+      en: "Which signals must you know and what does each do?"
+    a:
+      pt: "**SIGTERM (15)**: pede para encerrar (padrão do `kill`). **SIGKILL (9)**: mata na hora, não pode ser tratado. **SIGINT (2)**: o `Ctrl+C`. **SIGHUP (1)**: muitos serviços recarregam a configuração. **SIGSTOP (19)/SIGCONT (18)**: pausa e retoma. Lista completa: `kill -l`."
+      en: "**SIGTERM (15)**: asks to exit (the `kill` default). **SIGKILL (9)**: kills immediately, cannot be handled. **SIGINT (2)**: `Ctrl+C`. **SIGHUP (1)**: many services reload their configuration. **SIGSTOP (19)/SIGCONT (18)**: pause and resume. Full list: `kill -l`."
+    src: https://man7.org/linux/man-pages/man7/signal.7.html
+  - id: linux-zombie
+    type: choice
+    q:
+      pt: "Um processo aparece como `Z` (zumbi) no `ps`. O que ele é, e como se livrar dele?"
+      en: "A process shows as `Z` (zombie) in `ps`. What is it, and how do you get rid of it?"
+    options:
+      pt: ["Já terminou, mas o pai não leu o status dele: resolva o **pai** (ou espere ele encerrar)", "Está travado em I/O: use `kill -9` nele", "Está pausado: use `kill -CONT`", "É um processo do kernel: ignore"]
+      en: ["It already exited but its parent has not read its status: deal with the **parent** (or wait for it to exit)", "It is stuck in I/O: `kill -9` it", "It is paused: use `kill -CONT`", "It is a kernel process: ignore it"]
+    correct: 0
+    why:
+      pt: "O zumbi não usa CPU nem memória, só uma entrada na tabela de processos. `kill -9` nele não adianta, porque já está morto. Quando o pai é encerrado, o `init` (PID 1) adota e recolhe o zumbi. Em contêineres, um PID 1 que não recolhe filhos acumula zumbis."
+      en: "A zombie uses no CPU or memory, only a process-table entry. `kill -9` does nothing since it is already dead. When the parent exits, `init` (PID 1) adopts and reaps the zombie. In containers, a PID 1 that does not reap children piles up zombies."
+    src: https://man7.org/linux/man-pages/man2/wait.2.html
+  - id: linux-enable-now
+    type: command
+    q:
+      pt: "Ative o serviço `nginx` para subir no boot **e** inicie-o agora, em um comando."
+      en: "Enable the `nginx` service to start at boot **and** start it now, in one command."
+    answer: [systemctl, enable, "--now", nginx]
+    extra: [start, restart, disable, status, reload]
+    why:
+      pt: "`enable` só cria o link para o boot; `start` só inicia agora. `enable --now` faz os dois. `systemctl is-enabled` e `is-active` consultam cada estado separadamente."
+      en: "`enable` only creates the boot link; `start` only starts now. `enable --now` does both. `systemctl is-enabled` and `is-active` query each state separately."
+    src: https://man7.org/linux/man-pages/man1/systemctl.1.html
+  - id: linux-daemon-reload
+    type: card
+    q:
+      pt: "Editei um arquivo de unit do systemd. O que preciso rodar para a mudança valer, e onde ficam as units?"
+      en: "I edited a systemd unit file. What must I run for the change to take effect, and where do units live?"
+    a:
+      pt: "`systemctl daemon-reload` (relê as units) e depois `systemctl restart <serviço>`. Units do administrador ficam em `/etc/systemd/system/`; as de pacotes, em `/usr/lib/systemd/system/`. Use `systemctl cat <serviço>` para ver a definição efetiva, inclusive *drop-ins*."
+      en: "`systemctl daemon-reload` (re-reads units) and then `systemctl restart <service>`. Administrator units live in `/etc/systemd/system/`; package units in `/usr/lib/systemd/system/`. Use `systemctl cat <service>` to see the effective definition, including *drop-ins*."
+    src: https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html
+  - id: linux-journal-boot
+    type: command
+    q:
+      pt: "Mostre só as mensagens de nível `err` (ou pior) do boot atual."
+      en: "Show only `err` level (or worse) messages from the current boot."
+    answer: [journalctl, "-b", "-p", err]
+    alts:
+      - [journalctl, "-p", err, "-b"]
+    extra: ["-f", "-u", kubelet, "--since", "-k"]
+    why:
+      pt: "`-b` limita ao boot atual (`-b -1` é o anterior) e `-p` filtra por prioridade. Também úteis: `--since \"10 min ago\"`, `-u <unit>` e `-k` para mensagens do kernel."
+      en: "`-b` limits to the current boot (`-b -1` is the previous one) and `-p` filters by priority. Also useful: `--since \"10 min ago\"`, `-u <unit>` and `-k` for kernel messages."
+    src: https://man7.org/linux/man-pages/man1/journalctl.1.html

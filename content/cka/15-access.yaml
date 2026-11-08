@@ -1,0 +1,183 @@
+icon: 🔐
+id: cka-access
+title:
+  pt: RBAC, acesso e extensões (25%)
+  en: RBAC, access and extensions (25%)
+items:
+  - id: cka-rbac
+    type: command
+    q:
+      pt: Crie um Role `leitor` que permite `get` e `list` em `pods` no namespace atual.
+      en: Create a Role `reader` that allows `get` and `list` on `pods` in the current namespace.
+    answer:
+      - kubectl
+      - create
+      - role
+      - reader
+      - --verb=get,list
+      - --resource=pods
+    extra:
+      - clusterrole
+      - rolebinding
+      - --user=ana
+      - --verb=*
+    why:
+      pt: Um Role é por namespace; ClusterRole é do cluster inteiro. O Role só vale depois de um **RoleBinding** que o ligue a um usuário, grupo ou ServiceAccount.
+      en: A Role is namespaced; a ClusterRole is cluster-wide. The Role only takes effect once a **RoleBinding** ties it to a user, group or ServiceAccount.
+    src: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+  - id: cka-can-i
+    type: command
+    q:
+      pt: Verifique se você pode apagar Deployments no namespace `prod`.
+      en: Check whether you can delete Deployments in namespace `prod`.
+    answer:
+      - kubectl
+      - auth
+      - can-i
+      - delete
+      - deployments
+      - -n
+      - prod
+    extra:
+      - get
+      - --as=ana
+      - create
+      - --all-namespaces
+    why:
+      pt: "`auth can-i` responde sim/não. Com `--as=<usuário>` você testa o RBAC de outra identidade sem trocar de kubeconfig."
+      en: "`auth can-i` answers yes/no. With `--as=<user>` you test another identity's RBAC without switching kubeconfig."
+    src: https://kubernetes.io/docs/reference/access-authn-authz/authorization/#checking-api-access
+  - id: cka-rbac-binding
+    type: command
+    q:
+      pt: "Ligue o Role `reader` ao usuário `ana` no namespace atual."
+      en: "Bind the Role `reader` to user `ana` in the current namespace."
+    answer: [kubectl, create, rolebinding, ana-reader, "--role=reader", "--user=ana"]
+    alts:
+      - [kubectl, create, rolebinding, ana-reader, "--user=ana", "--role=reader"]
+    extra: [clusterrolebinding, "--clusterrole=reader", "--group=dev", "-n", prod]
+    why:
+      pt: "Um Role sozinho não concede nada: o **RoleBinding** liga o Role ao sujeito (usuário, grupo ou ServiceAccount). Para valer no cluster todo, use ClusterRole + ClusterRoleBinding."
+      en: "A Role alone grants nothing: the **RoleBinding** ties the Role to the subject (user, group or ServiceAccount). For cluster-wide, use ClusterRole + ClusterRoleBinding."
+    src: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
+  - id: cka-rbac-scope
+    type: choice
+    q:
+      pt: "Um **ClusterRole** ligado por um **RoleBinding** em `dev` vale onde?"
+      en: "A **ClusterRole** bound by a **RoleBinding** in `dev` applies where?"
+    options:
+      pt: ["Só no namespace `dev`", "No cluster inteiro", "Em nenhum lugar: é um erro", "Só em recursos do cluster, como Nodes"]
+      en: ["Only in namespace `dev`", "Cluster-wide", "Nowhere: it is an error", "Only on cluster-scoped resources such as Nodes"]
+    correct: 0
+    why:
+      pt: "O que limita o alcance é o **binding**, não o papel. É um padrão comum: um ClusterRole genérico (como `view`) reaproveitado em vários namespaces por RoleBindings."
+      en: "What limits the scope is the **binding**, not the role. A common pattern: a generic ClusterRole (like `view`) reused in many namespaces through RoleBindings."
+    src: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
+  - id: cka-rbac-additive
+    type: card
+    q:
+      pt: "É possível criar uma regra RBAC que **negue** um acesso?"
+      en: "Can you create an RBAC rule that **denies** access?"
+    a:
+      pt: "Não. O RBAC é **aditivo**: só existem regras de permissão, e o acesso é a união de todas as que se aplicam. Para negar, remova a permissão (ou o binding) que a concede."
+      en: "No. RBAC is **additive**: there are only allow rules, and access is the union of all that apply. To deny, remove the permission (or binding) that grants it."
+    src: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+  - id: cka-sa-create
+    type: command
+    q:
+      pt: "Crie a ServiceAccount `build-bot` no namespace atual."
+      en: "Create the ServiceAccount `build-bot` in the current namespace."
+    answer: [kubectl, create, serviceaccount, build-bot]
+    alts:
+      - [kubectl, create, sa, build-bot]
+    extra: [role, token, secret, get, "sa"]
+    why:
+      pt: "Pods usam ServiceAccounts para falar com a API. Todo namespace tem a `default`; crie uma própria e dê só as permissões necessárias (menor privilégio)."
+      en: "Pods use ServiceAccounts to talk to the API. Every namespace has `default`; create your own and grant only the permissions needed (least privilege)."
+    src: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+  - id: cka-sa-token
+    type: command
+    q:
+      pt: "Gere um token de curta duração para a ServiceAccount `build-bot`."
+      en: "Generate a short-lived token for ServiceAccount `build-bot`."
+    answer: [kubectl, create, token, build-bot]
+    extra: [secret, serviceaccount, get, "--duration=1h"]
+    why:
+      pt: "Desde a 1.24 o Kubernetes não cria mais Secrets de token para ServiceAccounts. O `kubectl create token` pede ao API server um token com prazo (`--duration`)."
+      en: "Since 1.24 Kubernetes no longer creates token Secrets for ServiceAccounts. `kubectl create token` asks the API server for a time-limited token (`--duration`)."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_token/
+  - id: cka-kubeconfig
+    type: card
+    q:
+      pt: "De que três partes é feito um kubeconfig?"
+      en: "What three parts make up a kubeconfig?"
+    a:
+      pt: "**clusters** (endereço e CA do API server), **users** (credenciais) e **contexts** (um par cluster + user + namespace). `current-context` diz qual está ativo. A variável `KUBECONFIG` pode listar vários arquivos."
+      en: "**clusters** (API server address and CA), **users** (credentials) and **contexts** (a cluster + user + namespace triple). `current-context` says which is active. The `KUBECONFIG` variable can list several files."
+    src: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
+  - id: cka-helm-install
+    type: command
+    q:
+      pt: "Instale o chart `bitnami/nginx` como uma release chamada `site`."
+      en: "Install the chart `bitnami/nginx` as a release named `site`."
+    answer: [helm, install, site, "bitnami/nginx"]
+    extra: [upgrade, template, "--namespace", repo, add, rollback]
+    why:
+      pt: "Formato: `helm install <release> <chart>`. Depois: `helm list`, `helm upgrade`, `helm rollback` e `helm uninstall`. `--set chave=valor` ou `-f values.yaml` mudam a configuração."
+      en: "Format: `helm install <release> <chart>`. Afterwards: `helm list`, `helm upgrade`, `helm rollback` and `helm uninstall`. `--set key=value` or `-f values.yaml` change the configuration."
+    src: https://helm.sh/docs/helm/helm_install/
+  - id: cka-helm-repo
+    type: order
+    q:
+      pt: "Instalar um chart de um repositório novo. Coloque na ordem."
+      en: "Install a chart from a new repository. Put in order."
+    steps:
+      pt:
+        - "`helm repo add bitnami https://charts.bitnami.com/bitnami`"
+        - "`helm repo update`"
+        - "`helm search repo nginx`"
+        - "`helm install site bitnami/nginx`"
+      en:
+        - "`helm repo add bitnami https://charts.bitnami.com/bitnami`"
+        - "`helm repo update`"
+        - "`helm search repo nginx`"
+        - "`helm install site bitnami/nginx`"
+    why:
+      pt: "Adiciona o repositório, atualiza o índice local, procura o chart e instala. Com `helm template` você vê o YAML gerado sem instalar nada."
+      en: "Add the repository, refresh the local index, find the chart and install. With `helm template` you see the generated YAML without installing anything."
+    src: https://helm.sh/docs/intro/quickstart/
+  - id: cka-kustomize-apply
+    type: command
+    q:
+      pt: "Aplique o diretório `overlays/prod`, que tem um `kustomization.yaml`."
+      en: "Apply the `overlays/prod` directory, which contains a `kustomization.yaml`."
+    answer: [kubectl, apply, "-k", overlays/prod]
+    alts:
+      - [kubectl, apply, "-k", "overlays/prod/"]
+    extra: ["-f", kustomize, "--dry-run=client", delete, "overlays/prod/"]
+    why:
+      pt: "O `-k` roda o Kustomize embutido. Para só ver o resultado: `kubectl kustomize overlays/prod`. O Kustomize aplica patches sobre uma base sem copiar nem editar os YAMLs originais."
+      en: "`-k` runs the built-in Kustomize. To just see the result: `kubectl kustomize overlays/prod`. Kustomize applies patches over a base without copying or editing the original YAMLs."
+    src: https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/
+  - id: cka-crd-operator
+    type: card
+    q:
+      pt: "O que é um CRD e o que é um Operator?"
+      en: "What is a CRD and what is an Operator?"
+    a:
+      pt: "Um **CRD** (CustomResourceDefinition) ensina a API do Kubernetes um tipo novo (por exemplo, `Certificate`). Um **Operator** é um controlador que observa esses recursos e faz o trabalho para levar o estado real ao desejado. Veja os CRDs com `kubectl get crd`."
+      en: "A **CRD** (CustomResourceDefinition) teaches the Kubernetes API a new type (for example, `Certificate`). An **Operator** is a controller that watches those resources and does the work to bring actual state to desired state. List CRDs with `kubectl get crd`."
+    src: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/
+  - id: cka-extension-interfaces
+    type: choice
+    q:
+      pt: "Qual interface permite que o Kubernetes use diferentes **runtimes de contêiner** (containerd, CRI-O)?"
+      en: "Which interface lets Kubernetes use different **container runtimes** (containerd, CRI-O)?"
+    options:
+      pt: ["CRI (Container Runtime Interface)", "CNI (Container Network Interface)", "CSI (Container Storage Interface)", "CDI (Container Device Interface)"]
+      en: ["CRI (Container Runtime Interface)", "CNI (Container Network Interface)", "CSI (Container Storage Interface)", "CDI (Container Device Interface)"]
+    correct: 0
+    why:
+      pt: "CRI: runtime. CNI: rede dos Pods. CSI: armazenamento. Cada uma é um contrato que permite trocar a implementação sem mexer no Kubernetes."
+      en: "CRI: runtime. CNI: Pod networking. CSI: storage. Each is a contract that lets you swap the implementation without touching Kubernetes."
+    src: https://kubernetes.io/docs/concepts/architecture/cri/

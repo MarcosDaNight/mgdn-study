@@ -1,0 +1,233 @@
+icon: 🚀
+id: cka-workloads
+title:
+  pt: Workloads e configuração (15%)
+  en: Workloads and configuration (15%)
+items:
+  - id: cka-pod-vs-deploy
+    type: card
+    q:
+      pt: Por que usar um Deployment em vez de criar Pods diretamente?
+      en: Why use a Deployment instead of creating Pods directly?
+    a:
+      pt: Um Pod solto não é recriado se o nó cair. O Deployment cria um **ReplicaSet** que mantém o número de réplicas, e ainda dá rolling update e rollback.
+      en: A bare Pod is not recreated if its node dies. A Deployment creates a **ReplicaSet** that keeps the replica count, and adds rolling updates and rollback.
+    src: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+  - id: cka-create-deploy
+    type: command
+    q:
+      pt: Crie um Deployment `web` com a imagem `nginx:1.27` e 3 réplicas.
+      en: Create a Deployment `web` with image `nginx:1.27` and 3 replicas.
+    answer:
+      - kubectl
+      - create
+      - deployment
+      - web
+      - --image=nginx:1.27
+      - --replicas=3
+    extra:
+      - run
+      - apply
+      - -f
+      - expose
+      - --port=80
+    why:
+      pt: Na prova, `kubectl create deployment` gera o objeto em segundos. Para partir de um YAML, acrescente `--dry-run=client -o yaml`.
+      en: In the exam, `kubectl create deployment` builds the object in seconds. To start from YAML, add `--dry-run=client -o yaml`.
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_deployment/
+  - id: cka-yaml-dryrun
+    type: command
+    q:
+      pt: Gere o YAML de um Pod `x` com a imagem `busybox`, sem criá-lo no cluster.
+      en: Generate the YAML for a Pod `x` with image `busybox` without creating it in the cluster.
+    answer:
+      - kubectl
+      - run
+      - x
+      - --image=busybox
+      - --dry-run=client
+      - -o
+      - yaml
+    extra:
+      - create
+      - apply
+      - --dry-run=server
+      - -o
+      - json
+    why:
+      pt: "É o atalho mais valioso da prova: `--dry-run=client -o yaml` entrega um esqueleto para editar, em vez de escrever o YAML do zero."
+      en: "The most valuable exam shortcut: `--dry-run=client -o yaml` gives you a skeleton to edit instead of writing YAML from scratch."
+    src: https://kubernetes.io/docs/reference/kubectl/quick-reference/
+  - id: cka-rollout-undo
+    type: command
+    q:
+      pt: Desfaça o último rollout do Deployment `web`.
+      en: Undo the last rollout of Deployment `web`.
+    answer:
+      - kubectl
+      - rollout
+      - undo
+      - deployment/web
+    extra:
+      - status
+      - history
+      - restart
+      - --to-revision=1
+    why:
+      pt: "`rollout status` acompanha, `rollout history` lista as revisões e `rollout undo` volta à anterior (ou a uma específica com `--to-revision`)."
+      en: "`rollout status` follows it, `rollout history` lists revisions and `rollout undo` goes back to the previous one (or a specific one with `--to-revision`)."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_undo/
+  - id: cka-configmap-use
+    type: card
+    q:
+      pt: De que duas formas principais um Pod consome um ConfigMap?
+      en: What are the two main ways a Pod consumes a ConfigMap?
+    a:
+      pt: Como **variáveis de ambiente** (`env`/`envFrom`) ou como **arquivos** em um volume. Variáveis são lidas só na criação do contêiner; volumes são atualizados no Pod em execução (com algum atraso).
+      en: As **environment variables** (`env`/`envFrom`) or as **files** in a volume. Env vars are read only at container start; volumes are refreshed in the running Pod (with some delay).
+    src: https://kubernetes.io/docs/concepts/configuration/configmap/
+  - id: cka-wl-scale
+    type: command
+    q:
+      pt: "Escale o Deployment `web` para 5 réplicas."
+      en: "Scale Deployment `web` to 5 replicas."
+    answer: [kubectl, scale, deployment, web, "--replicas=5"]
+    alts:
+      - [kubectl, scale, deployment/web, "--replicas=5"]
+    extra: [autoscale, "--min=2", rollout, set, "deployment/web"]
+    why:
+      pt: "`scale` muda só `spec.replicas`. Se houver um HPA ativo, ele volta a controlar esse número."
+      en: "`scale` only changes `spec.replicas`. If an HPA is active, it takes control of that number again."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_scale/
+  - id: cka-wl-setimage
+    type: command
+    q:
+      pt: "Troque a imagem do contêiner `nginx` do Deployment `web` para `nginx:1.27.1`."
+      en: "Change the image of container `nginx` in Deployment `web` to `nginx:1.27.1`."
+    answer: [kubectl, set, image, deployment/web, "nginx=nginx:1.27.1"]
+    alts:
+      - [kubectl, set, image, deployment, web, "nginx=nginx:1.27.1"]
+    extra: [edit, scale, rollout, "--image=nginx:1.27.1", "deployment", "web"]
+    why:
+      pt: "O formato é `<nome-do-contêiner>=<imagem>`. A mudança dispara um rolling update, que você acompanha com `kubectl rollout status deployment/web`."
+      en: "The format is `<container-name>=<image>`. The change triggers a rolling update that you follow with `kubectl rollout status deployment/web`."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_set/kubectl_set_image/
+  - id: cka-wl-strategy
+    type: card
+    q:
+      pt: "Como funciona a estratégia `RollingUpdate` e o que são `maxSurge` e `maxUnavailable`?"
+      en: "How does the `RollingUpdate` strategy work, and what are `maxSurge` and `maxUnavailable`?"
+    a:
+      pt: "O Deployment troca os Pods aos poucos. **maxSurge**: quantos Pods **a mais** podem existir durante a troca. **maxUnavailable**: quantos podem ficar **indisponíveis**. O padrão de cada um é 25%. A alternativa `Recreate` mata todos os Pods antes de criar os novos (há downtime)."
+      en: "The Deployment replaces Pods gradually. **maxSurge**: how many **extra** Pods may exist during the update. **maxUnavailable**: how many may be **unavailable**. Both default to 25%. The `Recreate` alternative kills all Pods before creating new ones (there is downtime)."
+    src: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
+  - id: cka-wl-yaml-selector
+    type: choice
+    q:
+      pt: "Este Deployment é rejeitado ao aplicar. Por quê?"
+      en: "This Deployment is rejected on apply. Why?"
+    code: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: web
+      spec:
+        replicas: 2
+        selector:
+          matchLabels:
+            app: web
+        template:
+          metadata:
+            labels:
+              app: site
+          spec:
+            containers:
+              - name: nginx
+                image: nginx:1.27
+    options:
+      pt: ["O `selector` não casa com os labels do template (`web` ≠ `site`)", "Falta o campo `strategy`", "O nome do contêiner não pode ser `nginx`", "`replicas` precisa ser ímpar"]
+      en: ["The `selector` does not match the template labels (`web` ≠ `site`)", "The `strategy` field is missing", "The container cannot be named `nginx`", "`replicas` must be odd"]
+    correct: 0
+    why:
+      pt: "O Deployment só gerencia Pods cujos labels casam com o `selector`. Em `apps/v1` o API server rejeita quando o template não casa, com o erro `selector does not match template labels`."
+      en: "A Deployment only manages Pods whose labels match its `selector`. In `apps/v1` the API server rejects a template that does not match, with `selector does not match template labels`."
+    src: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#selector
+  - id: cka-wl-configmap-cmd
+    type: command
+    q:
+      pt: "Crie o ConfigMap `app-config` com a chave `LOG_LEVEL=debug`."
+      en: "Create ConfigMap `app-config` with key `LOG_LEVEL=debug`."
+    answer: [kubectl, create, configmap, app-config, "--from-literal=LOG_LEVEL=debug"]
+    alts:
+      - [kubectl, create, cm, app-config, "--from-literal=LOG_LEVEL=debug"]
+    extra: ["--from-file=app.conf", secret, generic, "--from-env-file=.env", "cm"]
+    why:
+      pt: "Há três origens: `--from-literal` (chave=valor), `--from-file` (o conteúdo de um arquivo vira o valor) e `--from-env-file`. Depois o Pod usa via `env`/`envFrom` ou como volume."
+      en: "There are three sources: `--from-literal` (key=value), `--from-file` (a file's content becomes the value) and `--from-env-file`. The Pod then uses it through `env`/`envFrom` or as a volume."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_configmap/
+  - id: cka-wl-secret-cmd
+    type: command
+    q:
+      pt: "Crie o Secret genérico `db` com `password=s3cr3t`."
+      en: "Create the generic Secret `db` with `password=s3cr3t`."
+    answer: [kubectl, create, secret, generic, db, "--from-literal=password=s3cr3t"]
+    extra: [configmap, tls, docker-registry, "--from-file=password"]
+    why:
+      pt: "O `kubectl` já faz o base64 por você. Tipos úteis: `generic`, `tls` e `docker-registry` (para `imagePullSecrets`)."
+      en: "`kubectl` does the base64 for you. Useful types: `generic`, `tls` and `docker-registry` (for `imagePullSecrets`)."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_secret_generic/
+  - id: cka-wl-secret-b64
+    type: choice
+    q:
+      pt: "Um Secret guarda `cGFzc3dvcmQ=` no YAML. O que isso significa?"
+      en: "A Secret holds `cGFzc3dvcmQ=` in its YAML. What does that mean?"
+    options:
+      pt: ["É apenas base64, que qualquer um decodifica: não é criptografia", "O valor está criptografado com a chave do cluster", "O valor é um hash irreversível", "O valor só pode ser lido pelo Pod dono"]
+      en: ["It is only base64, which anyone can decode: not encryption", "The value is encrypted with the cluster key", "The value is an irreversible hash", "Only the owning Pod can read the value"]
+    correct: 0
+    why:
+      pt: "`echo cGFzc3dvcmQ= | base64 -d` mostra `password`. Para proteger de verdade: RBAC restrito a Secrets e criptografia em repouso no etcd (`EncryptionConfiguration`)."
+      en: "`echo cGFzc3dvcmQ= | base64 -d` prints `password`. To really protect: tight RBAC on Secrets and encryption at rest in etcd (`EncryptionConfiguration`)."
+    src: https://kubernetes.io/docs/concepts/configuration/secret/
+  - id: cka-wl-probes
+    type: choice
+    q:
+      pt: "A **readiness probe** de um Pod passa a falhar. O que o Kubernetes faz?"
+      en: "A Pod's **readiness probe** starts failing. What does Kubernetes do?"
+    options:
+      pt: ["Tira o Pod dos endpoints do Service, sem reiniciá-lo", "Reinicia o contêiner", "Apaga o Pod", "Move o Pod para outro nó"]
+      en: ["Removes the Pod from the Service endpoints without restarting it", "Restarts the container", "Deletes the Pod", "Moves the Pod to another node"]
+    correct: 0
+    why:
+      pt: "**Readiness** decide se recebe tráfego. **Liveness** decide se o contêiner precisa ser reiniciado. **Startup** protege apps lentos para a liveness não matá-los durante a inicialização."
+      en: "**Readiness** decides whether it receives traffic. **Liveness** decides whether the container must be restarted. **Startup** protects slow apps so liveness does not kill them while starting."
+    src: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  - id: cka-wl-init
+    type: card
+    q:
+      pt: "Quando um `initContainer` roda e para que serve?"
+      en: "When does an `initContainer` run and what is it for?"
+    a:
+      pt: "Os init containers rodam **um por vez, em ordem, até terminar com sucesso**, antes de qualquer contêiner do app. Servem para esperar uma dependência, baixar arquivos ou preparar o volume. Se um falha, o Pod reinicia a partir dele (status `Init:Error`)."
+      en: "Init containers run **one at a time, in order, until they succeed**, before any app container. They are for waiting on a dependency, fetching files or preparing a volume. If one fails the Pod retries from it (status `Init:Error`)."
+    src: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+  - id: cka-wl-securitycontext
+    type: card
+    q:
+      pt: "Quais campos do `securityContext` endurecem um contêiner?"
+      en: "Which `securityContext` fields harden a container?"
+    a:
+      pt: "`runAsNonRoot: true` (e `runAsUser`), `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false` e `capabilities: { drop: [ALL] }`. Em nível de Pod, `fsGroup` ajusta o grupo dono dos volumes."
+      en: "`runAsNonRoot: true` (and `runAsUser`), `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false` and `capabilities: { drop: [ALL] }`. At Pod level, `fsGroup` sets the group that owns the volumes."
+    src: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  - id: cka-wl-label
+    type: command
+    q:
+      pt: "Adicione o label `env=prod` ao Pod `web`."
+      en: "Add the label `env=prod` to Pod `web`."
+    answer: [kubectl, label, pod, web, "env=prod"]
+    extra: [annotate, "--overwrite", "env=dev", get, "--show-labels"]
+    why:
+      pt: "Labels ligam tudo: Services, Deployments e NetworkPolicies selecionam por label. Para trocar um valor existente, acrescente `--overwrite`. Para remover, `env-`."
+      en: "Labels tie everything together: Services, Deployments and NetworkPolicies select by label. To change an existing value add `--overwrite`. To remove, `env-`."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_label/

@@ -1,0 +1,33 @@
+id: u1
+title: { pt: Unidade u1, en: Unit u1 }
+items:
+  - id: a0
+    type: card
+    q: { pt: "p0", en: "q0" }
+    a: { pt: "r0", en: "a0" }
+    src: https://example.com/a0
+  - id: a1
+    type: card
+    q: { pt: "p1", en: "q1" }
+    a: { pt: "r1", en: "a1" }
+    src: https://example.com/a1
+  - id: a2
+    type: card
+    q: { pt: "p2", en: "q2" }
+    a: { pt: "r2", en: "a2" }
+    src: https://example.com/a2
+  - id: a3
+    type: card
+    q: { pt: "p3", en: "q3" }
+    a: { pt: "r3", en: "a3" }
+    src: https://example.com/a3
+  - id: a4
+    type: card
+    q: { pt: "p4", en: "q4" }
+    a: { pt: "r4", en: "a4" }
+    src: https://example.com/a4
+  - id: a5
+    type: card
+    q: { pt: "p5", en: "q5" }
+    a: { pt: "r5", en: "a5" }
+    src: https://example.com/a5

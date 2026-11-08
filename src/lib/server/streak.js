@@ -1,80 +1,54 @@
-import { db, getSetting } from './db.js';
+import { q } from './db.js';
 import { addDays, dayOf } from './time.js';
+import { dailyGoal } from './settings.js';
 
-export const FREEZE_EVERY = 7; // 1 "congelar" a cada 7 dias seguidos de streak
+export const FREEZE_EVERY = 7; // 1 "congelar" a cada 7 dias seguidos de meta batida
 export const MAX_FREEZES = 2;
 
-export const dailyGoal = () => Number(getSetting('daily_goal', '10'));
-
-function activeDays(goal) {
-  return new Set(
-    db.prepare('SELECT day FROM day_stat WHERE reviews >= ?').all(goal).map((r) => r.day)
-  );
-}
-
 /**
- * Streak = dias seguidos com a meta batida. Um dia perdido gasta um "congelar" (se houver);
- * sem congelar, o streak zera. Chamado a cada carregamento: fecha as lacunas até ontem.
+ * Streak como simulação pura sobre o histórico: nada é gravado ao ler.
+ * - dia com meta batida: streak +1 (a cada 7, ganha um congelar, até MAX_FREEZES);
+ * - dia perdido: gasta um congelar, se houver (o streak segue); sem congelar, zera;
+ * - hoje ainda aberto não conta como perdido.
+ * @param {Set<string>} active dias com a meta batida
  */
-export function settleFreezes(today = dayOf()) {
-  const goal = dailyGoal();
-  const active = activeDays(goal);
-  const frozen = new Set(db.prepare('SELECT day FROM freeze').all().map((r) => r.day));
-  const yesterday = addDays(today, -1);
-  // Só interessa se o streak estava vivo antes de ontem.
-  const alive = (d) => active.has(d) || frozen.has(d);
-  if (alive(yesterday) || !alive(addDays(yesterday, -1))) return;
-  if (freezesAvailable(today) > 0) {
-    db.prepare('INSERT OR IGNORE INTO freeze(day) VALUES (?)').run(yesterday);
+export function simulate(active, today) {
+  const frozen = new Set();
+  let streak = 0;
+  let freezes = 0;
+  const earn = () => {
+    streak++;
+    if (streak % FREEZE_EVERY === 0) freezes = Math.min(MAX_FREEZES, freezes + 1);
+  };
+  if (active.size) {
+    const first = [...active].sort()[0];
+    for (let d = first; d < today; d = addDays(d, 1)) {
+      if (active.has(d)) earn();
+      else if (freezes > 0) {
+        freezes--;
+        frozen.add(d);
+      } else streak = 0;
+    }
+    if (active.has(today)) earn();
   }
-}
-
-function longestRun(active) {
-  const days = [...active].sort();
-  let best = 0;
-  let run = 0;
-  let prev = null;
-  for (const d of days) {
-    run = prev && addDays(prev, 1) === d ? run + 1 : 1;
-    best = Math.max(best, run);
-    prev = d;
-  }
-  return best;
-}
-
-export function freezesAvailable() {
-  const active = activeDays(dailyGoal());
-  const earned = Math.floor(longestRun(active) / FREEZE_EVERY);
-  const used = db.prepare('SELECT COUNT(*) AS n FROM freeze').get().n;
-  return Math.max(0, Math.min(MAX_FREEZES, earned - used));
+  return { streak, freezes, frozen, doneToday: active.has(today) };
 }
 
 export function streakInfo(today = dayOf()) {
-  settleFreezes(today);
-  const goal = dailyGoal();
-  const active = activeDays(goal);
-  const frozen = new Set(db.prepare('SELECT day FROM freeze').all().map((r) => r.day));
-  const alive = (d) => active.has(d) || frozen.has(d);
-
-  const doneToday = active.has(today);
-  let cursor = doneToday ? today : addDays(today, -1);
-  let streak = 0;
-  while (alive(cursor)) {
-    if (active.has(cursor)) streak++;
-    cursor = addDays(cursor, -1);
-  }
-  const stat = db.prepare('SELECT reviews, xp FROM day_stat WHERE day = ?').get(today);
+  const active = new Set(q('SELECT day FROM day_stat WHERE reviews >= goal').all().map((r) => r.day));
+  const { streak, freezes, frozen, doneToday } = simulate(active, today);
+  const stat = q('SELECT reviews, goal, xp FROM day_stat WHERE day = ?').get(today);
   return {
     streak,
+    freezes,
     doneToday,
-    goal,
+    // A meta do dia só "trava" quando o dia começa; antes disso vale a configuração atual.
+    goal: stat?.goal ?? dailyGoal(),
     todayReviews: stat?.reviews ?? 0,
     todayXp: stat?.xp ?? 0,
-    freezes: freezesAvailable(),
-    // Últimos 7 dias, para o mini calendário.
     week: Array.from({ length: 7 }, (_, i) => {
-      const d = addDays(today, i - 6);
-      return { day: d, state: active.has(d) ? 'done' : frozen.has(d) ? 'frozen' : 'none' };
+      const day = addDays(today, i - 6);
+      return { day, today: day === today, state: active.has(day) ? 'done' : frozen.has(day) ? 'frozen' : 'none' };
     })
   };
 }

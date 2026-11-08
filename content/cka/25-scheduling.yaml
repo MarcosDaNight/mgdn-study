@@ -1,0 +1,174 @@
+icon: 🧮
+id: cka-scheduling
+title:
+  pt: Agendamento e recursos (15%)
+  en: Scheduling and resources (15%)
+items:
+  - id: cka-taint-effect
+    type: choice
+    q:
+      pt: Um nó tem o taint `dedicated=gpu:NoSchedule`. O que acontece com um Pod novo sem toleration?
+      en: A node has the taint `dedicated=gpu:NoSchedule`. What happens to a new Pod with no toleration?
+    options:
+      pt:
+        - Não é agendado nesse nó
+        - É agendado e depois removido
+        - É agendado normalmente
+        - Fica Pending para sempre em qualquer nó
+      en:
+        - It is not scheduled on that node
+        - It is scheduled and then evicted
+        - It is scheduled normally
+        - It stays Pending forever on every node
+    correct: 0
+    why:
+      pt: "`NoSchedule` impede novos Pods sem toleration, mas não remove os que já estão lá (isso é `NoExecute`). O Pod só fica Pending se **nenhum** nó o aceitar."
+      en: "`NoSchedule` blocks new Pods without a toleration but does not remove existing ones (that is `NoExecute`). The Pod is Pending only if **no** node accepts it."
+    src: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  - id: cka-sch-taint-cmd
+    type: command
+    q:
+      pt: "Aplique o taint `dedicated=gpu:NoSchedule` no nó `node01`."
+      en: "Apply the taint `dedicated=gpu:NoSchedule` to node `node01`."
+    answer: [kubectl, taint, nodes, node01, "dedicated=gpu:NoSchedule"]
+    alts:
+      - [kubectl, taint, node, node01, "dedicated=gpu:NoSchedule"]
+    extra: [label, cordon, "dedicated=gpu:NoSchedule-", drain, "node"]
+    why:
+      pt: "Para **remover**, repita o taint com um `-` no fim: `dedicated=gpu:NoSchedule-`. Só Pods com toleration correspondente são agendados lá."
+      en: "To **remove**, repeat the taint with a trailing `-`: `dedicated=gpu:NoSchedule-`. Only Pods with a matching toleration are scheduled there."
+    src: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  - id: cka-sch-requests
+    type: choice
+    q:
+      pt: "O scheduler decide em que nó colocar um Pod usando qual valor de recursos?"
+      en: "Which resource value does the scheduler use to decide where to place a Pod?"
+    options:
+      pt: ["As **requests** do Pod somadas ao que já está reservado no nó", "Os **limits** do Pod", "O uso real de CPU e memória no momento", "O tamanho da imagem"]
+      en: ["The Pod's **requests** added to what is already reserved on the node", "The Pod's **limits**", "Actual CPU and memory use at that moment", "The image size"]
+    correct: 0
+    why:
+      pt: "O agendamento é por **reserva**, não por uso real. Sem `requests`, o scheduler enxerga o Pod como se não consumisse nada, e o nó pode ficar sobrecarregado."
+      en: "Scheduling is by **reservation**, not actual use. Without `requests` the scheduler sees the Pod as consuming nothing, and the node can end up overloaded."
+    src: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  - id: cka-sch-qos
+    type: choice
+    q:
+      pt: "Em que condição um Pod tem a classe de QoS **Guaranteed**?"
+      en: "Under what condition does a Pod get the **Guaranteed** QoS class?"
+    options:
+      pt: ["Todos os contêineres têm `requests` iguais aos `limits`, de CPU e memória", "O Pod não define nenhum recurso", "Só os `limits` de memória estão definidos", "O Pod roda no control plane"]
+      en: ["Every container has `requests` equal to `limits` for both CPU and memory", "The Pod defines no resources at all", "Only memory `limits` are set", "The Pod runs on the control plane"]
+    correct: 0
+    why:
+      pt: "**Guaranteed** > **Burstable** (alguma request/limit, sem igualdade) > **BestEffort** (nada definido). Quando o nó fica sem memória, os BestEffort são despejados primeiro."
+      en: "**Guaranteed** > **Burstable** (some request/limit, not equal) > **BestEffort** (nothing set). When a node runs out of memory, BestEffort Pods are evicted first."
+    src: https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/
+  - id: cka-sch-oom
+    type: card
+    q:
+      pt: "O que acontece quando um contêiner ultrapassa o limit de **memória** e o de **CPU**?"
+      en: "What happens when a container exceeds its **memory** limit and its **CPU** limit?"
+    a:
+      pt: "**Memória**: o contêiner é morto (`OOMKilled`, código de saída 137) e reiniciado. **CPU**: ele é apenas **limitado** (*throttled*), nunca morto. Por isso um limit de CPU baixo causa lentidão, e um de memória baixo causa reinícios."
+      en: "**Memory**: the container is killed (`OOMKilled`, exit code 137) and restarted. **CPU**: it is only **throttled**, never killed. So a low CPU limit causes slowness, and a low memory limit causes restarts."
+    src: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#how-pods-with-resource-limits-are-run
+  - id: cka-sch-nodeselector
+    type: card
+    q:
+      pt: "Como fazer um Pod rodar só em nós com SSD?"
+      en: "How do you make a Pod run only on nodes with SSD?"
+    a:
+      pt: "Rotule o nó (`kubectl label node node01 disk=ssd`) e use `nodeSelector: { disk: ssd }` no Pod. Para regras mais ricas (preferências, operadores), use `nodeAffinity`."
+      en: "Label the node (`kubectl label node node01 disk=ssd`) and use `nodeSelector: { disk: ssd }` in the Pod. For richer rules (preferences, operators), use `nodeAffinity`."
+    src: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+  - id: cka-sch-affinity
+    type: choice
+    q:
+      pt: "Qual é a diferença entre `requiredDuringSchedulingIgnoredDuringExecution` e `preferred...`?"
+      en: "What is the difference between `requiredDuringSchedulingIgnoredDuringExecution` and `preferred...`?"
+    options:
+      pt: ["`required` é obrigatório (sem nó que case, o Pod fica Pending); `preferred` é só uma preferência", "`required` vale só no início e `preferred` vale sempre", "`preferred` bloqueia o agendamento", "Não há diferença prática"]
+      en: ["`required` is mandatory (with no matching node the Pod stays Pending); `preferred` is only a preference", "`required` applies only at start and `preferred` always", "`preferred` blocks scheduling", "There is no practical difference"]
+    correct: 0
+    why:
+      pt: "`IgnoredDuringExecution` quer dizer que mudar os labels do nó depois **não** despeja o Pod. Use `podAntiAffinity` para espalhar réplicas entre nós."
+      en: "`IgnoredDuringExecution` means changing node labels later does **not** evict the Pod. Use `podAntiAffinity` to spread replicas across nodes."
+    src: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+  - id: cka-sch-cordon
+    type: choice
+    q:
+      pt: "O que `kubectl cordon node01` faz?"
+      en: "What does `kubectl cordon node01` do?"
+    options:
+      pt: ["Marca o nó como não agendável, sem tirar os Pods que já estão nele", "Apaga todos os Pods do nó", "Desliga o kubelet", "Remove o nó do cluster"]
+      en: ["Marks the node unschedulable without removing the Pods already on it", "Deletes every Pod on the node", "Stops the kubelet", "Removes the node from the cluster"]
+    correct: 0
+    why:
+      pt: "`cordon` só bloqueia novos Pods. `drain` faz `cordon` e ainda despeja os Pods existentes. `uncordon` desfaz."
+      en: "`cordon` only blocks new Pods. `drain` does a `cordon` and also evicts existing Pods. `uncordon` undoes it."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cordon/
+  - id: cka-sch-drain
+    type: command
+    q:
+      pt: "Esvazie o nó `node01` para manutenção, ignorando os DaemonSets e apagando os volumes `emptyDir`."
+      en: "Empty node `node01` for maintenance, ignoring DaemonSets and deleting `emptyDir` volumes."
+    answer: [kubectl, drain, node01, "--ignore-daemonsets", "--delete-emptydir-data"]
+    alts:
+      - [kubectl, drain, node01, "--delete-emptydir-data", "--ignore-daemonsets"]
+    extra: [cordon, uncordon, "--force", "--grace-period=0"]
+    why:
+      pt: "Pods de DaemonSet não podem ser despejados (o controlador os recriaria), então o drain exige `--ignore-daemonsets`. Pods sem controlador exigem `--force`. Terminou? `kubectl uncordon node01`."
+      en: "DaemonSet Pods cannot be evicted (the controller would recreate them), so drain requires `--ignore-daemonsets`. Pods with no controller require `--force`. Done? `kubectl uncordon node01`."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/
+  - id: cka-sch-daemonset
+    type: choice
+    q:
+      pt: "Qual workload garante **um Pod por nó** (por exemplo, um agente de logs)?"
+      en: "Which workload guarantees **one Pod per node** (for example, a log agent)?"
+    options:
+      pt: [DaemonSet, Deployment, StatefulSet, ReplicaSet]
+      en: [DaemonSet, Deployment, StatefulSet, ReplicaSet]
+    correct: 0
+    why:
+      pt: "O DaemonSet cria um Pod em cada nó (e em nós novos, automaticamente). O `kube-proxy` e a maioria dos CNIs rodam assim. Para rodar nos nós do control plane é preciso uma toleration para o taint deles."
+      en: "A DaemonSet creates a Pod on every node (and on new nodes automatically). `kube-proxy` and most CNIs run this way. To run on control plane nodes it needs a toleration for their taint."
+    src: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/
+  - id: cka-sch-job
+    type: command
+    q:
+      pt: "Crie um Job `hello` com a imagem `busybox` que executa `echo hi`."
+      en: "Create a Job `hello` with image `busybox` that runs `echo hi`."
+    answer: [kubectl, create, job, hello, "--image=busybox", "--", echo, hi]
+    extra: [cronjob, run, "--schedule=*/5", "--restart=Never"]
+    why:
+      pt: "Job roda até **completar com sucesso**. Campos úteis: `completions`, `parallelism` e `backoffLimit` (tentativas antes de falhar). Não confunda com Deployment, que mantém o Pod rodando."
+      en: "A Job runs until it **completes successfully**. Useful fields: `completions`, `parallelism` and `backoffLimit` (retries before failing). Do not confuse it with a Deployment, which keeps the Pod running."
+    src: https://kubernetes.io/docs/concepts/workloads/controllers/job/
+  - id: cka-sch-cronjob
+    type: card
+    q:
+      pt: "Como agendar uma tarefa para rodar a cada 5 minutos?"
+      en: "How do you schedule a task to run every 5 minutes?"
+    a:
+      pt: "Um **CronJob** com `schedule: \"*/5 * * * *\"` (formato cron: minuto hora dia mês dia-da-semana). `concurrencyPolicy` define o que fazer se a anterior ainda roda: `Allow`, `Forbid` ou `Replace`. Teste na hora com `kubectl create job --from=cronjob/<nome> teste`."
+      en: "A **CronJob** with `schedule: \"*/5 * * * *\"` (cron format: minute hour day month weekday). `concurrencyPolicy` decides what to do if the previous one still runs: `Allow`, `Forbid` or `Replace`. Test right away with `kubectl create job --from=cronjob/<name> test`."
+    src: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+  - id: cka-sch-hpa
+    type: card
+    q:
+      pt: "O que o HPA precisa para escalar um Deployment por CPU?"
+      en: "What does the HPA need to scale a Deployment by CPU?"
+    a:
+      pt: "Do **metrics-server** instalado (fonte das métricas) e de **`resources.requests.cpu`** nos Pods, porque a porcentagem de uso é calculada sobre a request. Crie com `kubectl autoscale deployment web --min=2 --max=10 --cpu-percent=80` (nas versões novas, `--cpu=80%`)."
+      en: "The **metrics-server** installed (the metrics source) and **`resources.requests.cpu`** on the Pods, because utilization is computed against the request. Create it with `kubectl autoscale deployment web --min=2 --max=10 --cpu-percent=80` (on newer versions, `--cpu=80%`)."
+    src: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+  - id: cka-sch-quota
+    type: card
+    q:
+      pt: "Qual a diferença entre `ResourceQuota` e `LimitRange`?"
+      en: "What is the difference between `ResourceQuota` and `LimitRange`?"
+    a:
+      pt: "**ResourceQuota** limita o **total** de recursos (e de objetos) de um namespace. **LimitRange** define **valores padrão e mínimos/máximos por Pod ou contêiner** dentro do namespace. Com quota de CPU/memória ativa, todo Pod precisa declarar requests/limits (ou ter um LimitRange que os preencha)."
+      en: "**ResourceQuota** caps the **total** resources (and object counts) of a namespace. **LimitRange** sets **defaults and min/max per Pod or container** inside the namespace. With a CPU/memory quota active every Pod must declare requests/limits (or have a LimitRange fill them in)."
+    src: https://kubernetes.io/docs/concepts/policy/resource-quotas/

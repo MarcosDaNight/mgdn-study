@@ -1,0 +1,154 @@
+icon: "📁"
+id: linux-files
+title:
+  pt: Arquivos e permissões
+  en: Files and permissions
+items:
+  - id: linux-chmod-755
+    type: choice
+    q:
+      pt: Qual é a permissão de um arquivo com modo `755`?
+      en: What permissions does a file with mode `755` have?
+    options:
+      pt:
+        - "dono: rwx, grupo: r-x, outros: r-x"
+        - "dono: rwx, grupo: rwx, outros: r-x"
+        - "dono: rw-, grupo: r--, outros: r--"
+        - "dono: r-x, grupo: r-x, outros: r-x"
+      en:
+        - "owner: rwx, group: r-x, others: r-x"
+        - "owner: rwx, group: rwx, others: r-x"
+        - "owner: rw-, group: r--, others: r--"
+        - "owner: r-x, group: r-x, others: r-x"
+    correct: 0
+    why:
+      pt: Cada dígito soma r=4, w=2, x=1. 7 = 4+2+1 (rwx) e 5 = 4+1 (r-x). Dono, grupo e outros, nessa ordem.
+      en: Each digit adds r=4, w=2, x=1. 7 = 4+2+1 (rwx) and 5 = 4+1 (r-x). Owner, group, others, in that order.
+    src: https://man7.org/linux/man-pages/man1/chmod.1.html
+  - id: linux-chmod-cmd
+    type: command
+    q:
+      pt: Dê permissão de execução ao dono do arquivo `deploy.sh`, sem mexer nas outras.
+      en: Give the owner of `deploy.sh` execute permission without touching the others.
+    answer:
+      - chmod
+      - u+x
+      - deploy.sh
+    extra:
+      - chmod
+      - "777"
+      - +x
+      - u+x
+      - -R
+      - chown
+    why:
+      pt: "`u+x` altera só o bit de execução do usuário (`u`). `chmod 777` abriria tudo para todos, o que quase nunca é o certo."
+      en: "`u+x` changes only the owner's (`u`) execute bit. `chmod 777` would open everything to everyone, which is almost never right."
+    src: https://man7.org/linux/man-pages/man1/chmod.1.html
+  - id: linux-find-large
+    type: command
+    q:
+      pt: Liste os arquivos com mais de 100 MB sob `/var`.
+      en: List files larger than 100 MB under `/var`.
+    answer:
+      - find
+      - /var
+      - -type
+      - f
+      - -size
+      - +100M
+    extra:
+      - -name
+      - -mtime
+      - -100M
+      - -L
+    why:
+      pt: "`-size +100M` filtra por tamanho (o `+` significa 'maior que'). `-type f` ignora diretórios."
+      en: "`-size +100M` filters by size (`+` means 'greater than'). `-type f` skips directories."
+    src: https://man7.org/linux/man-pages/man1/find.1.html
+  - id: linux-hardlink
+    type: card
+    q:
+      pt: Qual a diferença entre um link simbólico e um hard link?
+      en: What is the difference between a symbolic link and a hard link?
+    a:
+      pt: "O hard link é outro nome para o **mesmo inode**: apagar o original não afeta o link. O simbólico é um arquivo que guarda um **caminho**: se o alvo some, o link fica quebrado. Hard link não cruza sistemas de arquivos nem aponta para diretórios."
+      en: "A hard link is another name for the **same inode**: deleting the original does not affect it. A symlink is a file holding a **path**: if the target goes away, the link breaks. Hard links cannot cross filesystems or point to directories."
+    src: https://man7.org/linux/man-pages/man7/symlink.7.html
+  - id: linux-ls-type
+    type: choice
+    q:
+      pt: "Em `drwxr-xr-x 2 ana dev 4096 nov 8 /srv/app`, o que significa o `d` no começo?"
+      en: "In `drwxr-xr-x 2 ana dev 4096 Nov 8 /srv/app`, what does the leading `d` mean?"
+    options:
+      pt: ["É um diretório", "É um arquivo comum", "É um link simbólico", "O arquivo foi apagado (*deleted*)"]
+      en: ["It is a directory", "It is a regular file", "It is a symbolic link", "The file was deleted"]
+    correct: 0
+    why:
+      pt: "O primeiro caractere é o tipo: `-` arquivo, `d` diretório, `l` link simbólico. Depois vêm três trios de permissões: dono (`rwx`), grupo (`r-x`) e outros (`r-x`)."
+      en: "The first character is the type: `-` file, `d` directory, `l` symbolic link. Then come three permission triplets: owner (`rwx`), group (`r-x`) and others (`r-x`)."
+    src: https://man7.org/linux/man-pages/man1/ls.1.html
+  - id: linux-dir-exec
+    type: choice
+    q:
+      pt: "Qual permissão você precisa **em um diretório** para conseguir entrar nele com `cd`?"
+      en: "Which permission do you need **on a directory** to be able to `cd` into it?"
+    options:
+      pt: ["`x` (execução/travessia)", "`r` (leitura)", "`w` (escrita)", "Nenhuma: qualquer um entra"]
+      en: ["`x` (execute/traverse)", "`r` (read)", "`w` (write)", "None: anyone can enter"]
+    correct: 0
+    why:
+      pt: "Em diretório, `x` é o direito de **atravessar** (acessar o que há dentro pelo nome). `r` permite **listar** o conteúdo, e `w` permite criar e apagar entradas. Sem `x`, nem `ls -l` mostra os detalhes."
+      en: "On a directory `x` is the right to **traverse** (reach what is inside by name). `r` lets you **list** the contents and `w` lets you create and delete entries. Without `x` even `ls -l` cannot show the details."
+    src: https://man7.org/linux/man-pages/man7/path_resolution.7.html
+  - id: linux-chown
+    type: command
+    q:
+      pt: "Mude o dono de `report.txt` para `ana` e o grupo para `dev`, em um comando."
+      en: "Change the owner of `report.txt` to `ana` and the group to `dev`, in one command."
+    answer: [chown, "ana:dev", report.txt]
+    extra: [chmod, chgrp, "-R", "ana.dev", sudo]
+    why:
+      pt: "`chown dono:grupo arquivo`. Só o root pode mudar o dono. Use `-R` para aplicar recursivamente. Para mudar só o grupo, `chgrp dev report.txt` ou `chown :dev report.txt`."
+      en: "`chown owner:group file`. Only root can change the owner. Use `-R` to apply recursively. To change only the group, `chgrp dev report.txt` or `chown :dev report.txt`."
+    src: https://man7.org/linux/man-pages/man1/chown.1.html
+  - id: linux-umask
+    type: card
+    q:
+      pt: "Com `umask 022`, quais permissões ganham um arquivo e um diretório novos?"
+      en: "With `umask 022`, what permissions do a new file and a new directory get?"
+    a:
+      pt: "Arquivo: **644** (`rw-r--r--`). Diretório: **755** (`rwxr-xr-x`). O `umask` **subtrai** bits do padrão (666 para arquivos, 777 para diretórios). Com `umask 077`, só o dono acessa (600 e 700)."
+      en: "File: **644** (`rw-r--r--`). Directory: **755** (`rwxr-xr-x`). `umask` **removes** bits from the default (666 for files, 777 for directories). With `umask 077` only the owner has access (600 and 700)."
+    src: https://man7.org/linux/man-pages/man2/umask.2.html
+  - id: linux-sticky
+    type: card
+    q:
+      pt: "Por que `/tmp` aparece como `drwxrwxrwt`, e o que é esse `t`?"
+      en: "Why does `/tmp` show as `drwxrwxrwt`, and what is that `t`?"
+    a:
+      pt: "É o **sticky bit**. Todos podem criar arquivos no diretório, mas **só o dono do arquivo** (ou do diretório, ou o root) pode apagá-lo ou renomeá-lo. Sem ele, qualquer um com `w` no diretório apagaria arquivos alheios. Ligue com `chmod +t` (ou `1777`)."
+      en: "It is the **sticky bit**. Everyone can create files in the directory, but **only the file's owner** (or the directory's, or root) can delete or rename it. Without it anyone with `w` on the directory could delete others' files. Set it with `chmod +t` (or `1777`)."
+    src: https://man7.org/linux/man-pages/man1/chmod.1.html
+  - id: linux-setuid
+    type: card
+    q:
+      pt: "O que é o bit **setuid** (o `s` em `-rwsr-xr-x`) e por que exige cuidado?"
+      en: "What is the **setuid** bit (the `s` in `-rwsr-xr-x`) and why does it need care?"
+    a:
+      pt: "Faz o programa rodar com as permissões do **dono do arquivo**, e não de quem o executa. É assim que o `passwd` (dono root) altera `/etc/shadow` para um usuário comum. Um setuid mal escrito ou em local indevido é caminho clássico de **escalada de privilégio**; liste com `find / -perm -4000`."
+      en: "It makes the program run with the **file owner's** permissions, not those of whoever runs it. That is how `passwd` (owned by root) changes `/etc/shadow` for a regular user. A badly written or misplaced setuid is a classic **privilege escalation** path; list them with `find / -perm -4000`."
+    src: https://man7.org/linux/man-pages/man2/execve.2.html
+  - id: linux-tar
+    type: command
+    q:
+      pt: "Crie `backup.tar.gz` (compactado com gzip) com o diretório `/etc/kubernetes`."
+      en: "Create `backup.tar.gz` (gzip-compressed) from the `/etc/kubernetes` directory."
+    answer: [tar, "-czf", backup.tar.gz, /etc/kubernetes]
+    alts:
+      - [tar, czf, backup.tar.gz, /etc/kubernetes]
+    extra: ["-xzf", "-tvf", "-C", zip, gzip, "czf"]
+    why:
+      pt: "`c` cria, `z` gzip, `f` arquivo de saída. Para **listar** sem extrair: `tar -tzf`. Para **extrair**: `tar -xzf backup.tar.gz -C /destino`. Esquecer o `f` é o erro mais comum."
+      en: "`c` creates, `z` gzip, `f` output file. To **list** without extracting: `tar -tzf`. To **extract**: `tar -xzf backup.tar.gz -C /destination`. Forgetting `f` is the most common mistake."
+    src: https://man7.org/linux/man-pages/man1/tar.1.html

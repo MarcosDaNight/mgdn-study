@@ -1,0 +1,106 @@
+icon: 🚦
+id: cka-ingress-netpol
+title:
+  pt: Ingress, Gateway e NetworkPolicy (20%)
+  en: Ingress, Gateway and NetworkPolicy (20%)
+items:
+  - id: cka-netpol
+    type: choice
+    q:
+      pt: Aplicar uma NetworkPolicy que seleciona um Pod, sem regras de `ingress`, faz o quê?
+      en: Applying a NetworkPolicy that selects a Pod, with `Ingress` in `policyTypes` but no ingress rules, does what?
+    options:
+      pt:
+        - Bloqueia todo o tráfego de entrada desse Pod
+        - Libera todo o tráfego de entrada
+        - Não muda nada
+        - Bloqueia entrada e saída
+      en:
+        - Blocks all incoming traffic to that Pod
+        - Allows all incoming traffic
+        - Changes nothing
+        - Blocks both ingress and egress
+    correct: 0
+    why:
+      pt: Pods são abertos até serem selecionados por uma NetworkPolicy. Com `Ingress` em `policyTypes` e nenhuma regra, nada é permitido. Isso só funciona se o CNI aplicar NetworkPolicy (o Flannel puro, não).
+      en: Pods are open until a NetworkPolicy selects them. With `Ingress` in `policyTypes` and no rules, nothing is allowed. This only works if the CNI enforces NetworkPolicy (plain Flannel does not).
+    src: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+  - id: cka-ing-controller
+    type: card
+    q:
+      pt: "Criei um recurso Ingress, mas nada responde. O que costuma faltar?"
+      en: "I created an Ingress resource but nothing answers. What is usually missing?"
+    a:
+      pt: "Um **Ingress controller** (ingress-nginx, Traefik...). O recurso Ingress é só uma regra declarada; sem um controller instalado nada a executa. Confira também o `ingressClassName`, que escolhe qual controller atende a regra."
+      en: "An **Ingress controller** (ingress-nginx, Traefik...). The Ingress resource is only a declared rule; with no controller installed nothing enforces it. Also check `ingressClassName`, which picks which controller serves the rule."
+    src: https://kubernetes.io/docs/concepts/services-networking/ingress/
+  - id: cka-ing-pathtype
+    type: choice
+    q:
+      pt: "Este Ingress dá erro ao aplicar. O que falta?"
+      en: "This Ingress errors on apply. What is missing?"
+    code: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: web
+      spec:
+        ingressClassName: nginx
+        rules:
+          - host: site.example.com
+            http:
+              paths:
+                - path: /
+                  backend:
+                    service:
+                      name: web
+                      port:
+                        number: 80
+    options:
+      pt: ["`pathType` (obrigatório em `networking.k8s.io/v1`)", "O campo `replicas`", "Um `selector`", "A porta 443"]
+      en: ["`pathType` (required in `networking.k8s.io/v1`)", "A `replicas` field", "A `selector`", "Port 443"]
+    correct: 0
+    why:
+      pt: "Em `v1`, cada caminho exige `pathType`: `Prefix` (casa o prefixo), `Exact` (só o caminho exato) ou `ImplementationSpecific`."
+      en: "In `v1`, every path requires `pathType`: `Prefix` (matches the prefix), `Exact` (only the exact path) or `ImplementationSpecific`."
+    src: https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
+  - id: cka-gw-api
+    type: card
+    q:
+      pt: "Quais são os três recursos principais da Gateway API e como se relacionam?"
+      en: "What are the three main Gateway API resources and how do they relate?"
+    a:
+      pt: "**GatewayClass**: qual implementação/controlador (como o `IngressClass`). **Gateway**: um ponto de entrada, com listeners (porta, protocolo, TLS). **HTTPRoute**: as regras de roteamento, ligadas a um Gateway por `parentRefs`. A API separa papéis: infraestrutura cuida do Gateway, os times de app cuidam das rotas."
+      en: "**GatewayClass**: which implementation/controller (like `IngressClass`). **Gateway**: an entry point, with listeners (port, protocol, TLS). **HTTPRoute**: the routing rules, tied to a Gateway through `parentRefs`. The API separates roles: infrastructure owns the Gateway, app teams own the routes."
+    src: https://gateway-api.sigs.k8s.io/concepts/api-overview/
+  - id: cka-netpol-and-or
+    type: choice
+    q:
+      pt: "Numa NetworkPolicy, `from` tem `namespaceSelector` e `podSelector` no **mesmo** item da lista. Como é a regra?"
+      en: "In a NetworkPolicy, `from` has `namespaceSelector` and `podSelector` in the **same** list item. How does the rule work?"
+    options:
+      pt: ["E (AND): o Pod precisa casar com os dois seletores", "OU (OR): basta casar com um deles", "Os dois seletores se anulam", "Só o `namespaceSelector` vale"]
+      en: ["AND: the Pod must match both selectors", "OR: matching either is enough", "The two selectors cancel out", "Only `namespaceSelector` applies"]
+    correct: 0
+    why:
+      pt: "Dentro de um **mesmo item** é E. Em **itens separados** (dois `-`) é OU. Um traço a mais ou a menos muda a regra e é um erro clássico."
+      en: "Inside a **single item** it is AND. In **separate items** (two `-`) it is OR. One dash more or less changes the rule, and it is a classic mistake."
+    src: https://kubernetes.io/docs/concepts/services-networking/network-policies/#behavior-of-to-and-from-selectors
+  - id: cka-netpol-default-deny
+    type: card
+    q:
+      pt: "Como bloquear toda a entrada de um namespace por padrão (*default deny*)?"
+      en: "How do you block all ingress in a namespace by default (*default deny*)?"
+    a:
+      pt: "Uma NetworkPolicy com `podSelector: {}` (todos os Pods) e `policyTypes: [Ingress]`, **sem regras de ingress**. Depois você libera o necessário com outras políticas, que se somam."
+      en: "A NetworkPolicy with `podSelector: {}` (all Pods) and `policyTypes: [Ingress]`, **with no ingress rules**. Then you allow what is needed with other policies, which add up."
+    src: https://kubernetes.io/docs/concepts/services-networking/network-policies/#default-deny-all-ingress-traffic
+  - id: cka-netpol-dns
+    type: card
+    q:
+      pt: "Depois de aplicar *default deny* de **egress**, os Pods não resolvem mais nomes. Por quê?"
+      en: "After applying an **egress** *default deny*, Pods can no longer resolve names. Why?"
+    a:
+      pt: "A consulta DNS é tráfego de saída para o CoreDNS. É preciso liberar **egress para a porta 53 (UDP e TCP)** do `kube-dns`, normalmente com `namespaceSelector` para `kube-system`. Sem isso, nenhum nome resolve."
+      en: "The DNS lookup is outgoing traffic to CoreDNS. You must allow **egress to port 53 (UDP and TCP)** of `kube-dns`, usually with a `namespaceSelector` for `kube-system`. Without it no name resolves."
+    src: https://kubernetes.io/docs/concepts/services-networking/network-policies/

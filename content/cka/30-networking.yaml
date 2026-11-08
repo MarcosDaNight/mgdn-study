@@ -1,0 +1,157 @@
+icon: 🌐
+id: cka-networking
+title:
+  pt: Services e DNS (20%)
+  en: Services and DNS (20%)
+items:
+  - id: cka-svc-types
+    type: choice
+    q:
+      pt: Qual tipo de Service expõe o app em uma porta de cada nó do cluster?
+      en: Which Service type exposes the app on a port of every cluster node?
+    options:
+      pt:
+        - NodePort
+        - ClusterIP
+        - ExternalName
+        - Headless
+      en:
+        - NodePort
+        - ClusterIP
+        - ExternalName
+        - Headless
+    correct: 0
+    why:
+      pt: NodePort abre uma porta (30000-32767) em todos os nós. ClusterIP é só interno (o padrão). LoadBalancer vem por cima do NodePort, com balanceador externo.
+      en: NodePort opens a port (30000-32767) on every node. ClusterIP is internal only (the default). LoadBalancer builds on NodePort with an external balancer.
+    src: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  - id: cka-expose
+    type: command
+    q:
+      pt: Exponha o Deployment `web` na porta 80 como Service.
+      en: Expose Deployment `web` on port 80 as a Service.
+    answer:
+      - kubectl
+      - expose
+      - deployment
+      - web
+      - --port=80
+    extra:
+      - create
+      - --type=NodePort
+      - run
+      - --target-port=8080
+    why:
+      pt: "`expose` copia o selector do Deployment. Sem `--type`, o padrão é ClusterIP."
+      en: "`expose` copies the Deployment's selector. Without `--type` the default is ClusterIP."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_expose/
+  - id: cka-svc-no-endpoints
+    type: card
+    q:
+      pt: Um Service existe, mas `curl` nele dá timeout. Qual é a primeira checagem?
+      en: A Service exists but `curl` to it times out. What is the first check?
+    a:
+      pt: "`kubectl get endpoints <svc>` (ou `endpointslices`). Se estiver **vazio**, o `selector` do Service não casa com os labels dos Pods (ou os Pods não estão Ready). Compare `kubectl describe svc` com `kubectl get pods --show-labels`."
+      en: "`kubectl get endpoints <svc>` (or `endpointslices`). If it is **empty**, the Service `selector` does not match the Pods' labels (or the Pods are not Ready). Compare `kubectl describe svc` with `kubectl get pods --show-labels`."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/
+  - id: cka-dns-fqdn
+    type: card
+    q:
+      pt: Qual o nome DNS completo de um Service `api` no namespace `prod`?
+      en: What is the full DNS name of a Service `api` in namespace `prod`?
+    a:
+      pt: "`api.prod.svc.cluster.local`. Do mesmo namespace basta `api`; de outro, use `api.prod`."
+      en: "`api.prod.svc.cluster.local`. From the same namespace `api` is enough; from another, use `api.prod`."
+    src: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+  - id: cka-net-ports
+    type: card
+    q:
+      pt: "Num Service, qual a diferença entre `port`, `targetPort` e `nodePort`?"
+      en: "In a Service, what is the difference between `port`, `targetPort` and `nodePort`?"
+    a:
+      pt: "**port**: a porta do próprio Service (o que os clientes chamam). **targetPort**: a porta do contêiner para onde o tráfego vai. **nodePort**: a porta aberta em cada nó (30000-32767), só em NodePort/LoadBalancer. Se omitir `targetPort`, vale o mesmo número de `port`."
+      en: "**port**: the Service's own port (what clients call). **targetPort**: the container port traffic is sent to. **nodePort**: the port opened on every node (30000-32767), only for NodePort/LoadBalancer. If `targetPort` is omitted it defaults to the same number as `port`."
+    src: https://kubernetes.io/docs/concepts/services-networking/service/#defining-a-service
+  - id: cka-net-headless
+    type: choice
+    q:
+      pt: "O que muda em um Service **headless** (`clusterIP: None`)?"
+      en: "What changes in a **headless** Service (`clusterIP: None`)?"
+    options:
+      pt: ["Não há IP virtual: o DNS devolve os IPs dos Pods diretamente", "Ele fica inacessível de dentro do cluster", "Ele só aceita tráfego externo", "Ele balanceia por round-robin no kube-proxy"]
+      en: ["There is no virtual IP: DNS returns the Pod IPs directly", "It becomes unreachable from inside the cluster", "It only accepts external traffic", "It load-balances round-robin in kube-proxy"]
+    correct: 0
+    why:
+      pt: "É a base dos StatefulSets: cada Pod ganha um nome DNS estável (`pod-0.meu-svc`). Sem IP virtual, o kube-proxy não balanceia; o cliente escolhe o Pod."
+      en: "It underpins StatefulSets: every Pod gets a stable DNS name (`pod-0.my-svc`). With no virtual IP, kube-proxy does not balance; the client picks the Pod."
+    src: https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
+  - id: cka-net-kubeproxy
+    type: card
+    q:
+      pt: "O que o `kube-proxy` faz e onde ele roda?"
+      en: "What does `kube-proxy` do and where does it run?"
+    a:
+      pt: "Roda em **todo nó** (como DaemonSet, no `kube-system`) e programa regras de **iptables** ou **IPVS** que traduzem o IP virtual de um Service nos IPs dos Pods atrás dele. Ele não está no caminho dos pacotes: só mantém as regras."
+      en: "Runs on **every node** (as a DaemonSet in `kube-system`) and programs **iptables** or **IPVS** rules that translate a Service's virtual IP into the IPs of the Pods behind it. It is not in the packet path: it only maintains the rules."
+    src: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/
+  - id: cka-net-coredns
+    type: card
+    q:
+      pt: "Onde roda o DNS do cluster e onde fica a sua configuração?"
+      en: "Where does cluster DNS run and where is its configuration?"
+    a:
+      pt: "O **CoreDNS** roda como Deployment no `kube-system`, atrás do Service `kube-dns`. A configuração (o `Corefile`) é o ConfigMap `coredns`. Os Pods apontam para ele pelo `/etc/resolv.conf`, preenchido pelo kubelet."
+      en: "**CoreDNS** runs as a Deployment in `kube-system`, behind the `kube-dns` Service. Its configuration (the `Corefile`) is the `coredns` ConfigMap. Pods point to it through `/etc/resolv.conf`, filled in by the kubelet."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/
+  - id: cka-net-cni
+    type: choice
+    q:
+      pt: "Quem dá a cada Pod um IP e conecta Pods de nós diferentes?"
+      en: "Who gives each Pod an IP and connects Pods on different nodes?"
+    options:
+      pt: ["O plugin de rede (CNI), como Calico, Cilium ou Flannel", "O kube-proxy", "O kube-scheduler", "O CoreDNS"]
+      en: ["The network plugin (CNI), such as Calico, Cilium or Flannel", "kube-proxy", "The kube-scheduler", "CoreDNS"]
+    correct: 0
+    why:
+      pt: "O modelo de rede do Kubernetes exige que todo Pod alcance qualquer outro pelo IP, sem NAT. Quem implementa isso é o CNI. O kube-proxy cuida só de Services."
+      en: "The Kubernetes network model requires every Pod to reach any other by IP, without NAT. The CNI implements that. kube-proxy only handles Services."
+    src: https://kubernetes.io/docs/concepts/cluster-administration/networking/
+  - id: cka-net-portforward
+    type: command
+    q:
+      pt: "Acesse o Service `web` (porta 80) em `localhost:8080`, sem expô-lo."
+      en: "Reach Service `web` (port 80) at `localhost:8080` without exposing it."
+    answer: [kubectl, port-forward, svc/web, "8080:80"]
+    alts:
+      - [kubectl, port-forward, service/web, "8080:80"]
+    extra: [expose, proxy, "80:8080", "-n", "service/web"]
+    why:
+      pt: "O formato é `<porta-local>:<porta-remota>`. Ótimo para testar um Pod ou Service sem criar NodePort ou Ingress. Funciona enquanto o comando estiver rodando."
+      en: "The format is `<local-port>:<remote-port>`. Great for testing a Pod or Service without creating a NodePort or Ingress. It works while the command keeps running."
+    src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/
+  - id: cka-net-run-tmp
+    type: command
+    q:
+      pt: "Teste o Service `web` de dentro do cluster com um Pod temporário `busybox` (apagado ao sair) que faz `wget -qO- web`."
+      en: "Test Service `web` from inside the cluster with a temporary `busybox` Pod (deleted on exit) running `wget -qO- web`."
+    answer: [kubectl, run, tmp, "--rm", "-it", "--image=busybox", "--restart=Never", "--", wget, "-qO-", web]
+    alts:
+      - [kubectl, run, tmp, "-it", "--rm", "--image=busybox", "--restart=Never", "--", wget, "-qO-", web]
+    extra: [exec, curl, "--port=80", create]
+    why:
+      pt: "`--rm -it --restart=Never` cria o Pod, mostra a saída e apaga ao sair. É o jeito padrão de testar DNS e conectividade do ponto de vista de um Pod (e não do seu notebook)."
+      en: "`--rm -it --restart=Never` creates the Pod, shows the output and deletes it on exit. It is the standard way to test DNS and connectivity from a Pod's point of view (not your laptop's)."
+    src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/
+  - id: cka-net-nodeport-range
+    type: choice
+    q:
+      pt: "Qual o intervalo padrão de portas de um Service NodePort?"
+      en: "What is the default port range for a NodePort Service?"
+    options:
+      pt: ["30000-32767", "1024-65535", "8000-9000", "10250-10259"]
+      en: ["30000-32767", "1024-65535", "8000-9000", "10250-10259"]
+    correct: 0
+    why:
+      pt: "É configurável no kube-apiserver (`--service-node-port-range`), mas esse é o padrão. Se você não definir `nodePort`, o Kubernetes sorteia uma porta livre do intervalo."
+      en: "It is configurable on the kube-apiserver (`--service-node-port-range`), but this is the default. If you do not set `nodePort`, Kubernetes picks a free port in the range."
+    src: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport

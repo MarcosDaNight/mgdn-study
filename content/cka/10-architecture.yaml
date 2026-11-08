@@ -1,0 +1,209 @@
+icon: 🏗️
+id: cka-architecture
+title:
+  pt: Control plane e kubeadm (25%)
+  en: Control plane and kubeadm (25%)
+items:
+  - id: cka-controlplane
+    type: card
+    q:
+      pt: Quais são os componentes do control plane e o que cada um faz?
+      en: What are the control plane components and what does each one do?
+    a:
+      pt: "**kube-apiserver**: porta de entrada da API. **etcd**: guarda o estado do cluster. **kube-scheduler**: escolhe o nó de cada Pod. **kube-controller-manager**: roda os controladores que levam o estado atual ao desejado."
+      en: "**kube-apiserver**: the API front door. **etcd**: stores cluster state. **kube-scheduler**: picks a node for each Pod. **kube-controller-manager**: runs the controllers that drive current state toward desired state."
+    src: https://kubernetes.io/docs/concepts/overview/components/
+  - id: cka-static-pod-path
+    type: card
+    q:
+      pt: Onde ficam os manifestos dos Pods estáticos de um cluster kubeadm?
+      en: Where do the static Pod manifests live in a kubeadm cluster?
+    a:
+      pt: "`/etc/kubernetes/manifests/`. O kubelet observa o diretório e sobe o que estiver lá: é assim que `kube-apiserver`, `etcd`, `scheduler` e `controller-manager` rodam. Editar o arquivo reinicia o componente."
+      en: "`/etc/kubernetes/manifests/`. The kubelet watches that directory and runs whatever is there: this is how `kube-apiserver`, `etcd`, `scheduler` and `controller-manager` run. Editing the file restarts the component."
+    src: https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/
+  - id: cka-etcd-snapshot
+    type: command
+    q:
+      pt: Salve um snapshot do etcd em `/tmp/etcd.db`. (Os certificados já estão nas variáveis de ambiente.)
+      en: Save an etcd snapshot to `/tmp/etcd.db`. (The certificates are already in environment variables.)
+    answer:
+      - etcdctl
+      - snapshot
+      - save
+      - /tmp/etcd.db
+    extra:
+      - restore
+      - status
+      - --data-dir
+      - member
+      - list
+    why:
+      pt: Backup e restore do etcd caem com frequência na prova. Use `ETCDCTL_API=3` e passe `--endpoints`, `--cacert`, `--cert` e `--key`. O restore usa `etcdutl snapshot restore ... --data-dir` (em versões antigas, `etcdctl`).
+      en: etcd backup and restore show up often in the exam. Use `ETCDCTL_API=3` and pass `--endpoints`, `--cacert`, `--cert` and `--key`. Restore uses `etcdutl snapshot restore ... --data-dir` (on older versions, `etcdctl`).
+    src: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
+  - id: cka-kubeadm-join
+    type: card
+    q:
+      pt: O token de `kubeadm join` expirou. Como gerar um novo comando de join?
+      en: The `kubeadm join` token expired. How do you get a fresh join command?
+    a:
+      pt: "No control plane: `kubeadm token create --print-join-command`. Os tokens expiram em 24 h por padrão."
+      en: "On the control plane: `kubeadm token create --print-join-command`. Tokens expire after 24 h by default."
+    src: https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-token/
+  - id: cka-cp-flow
+    type: order
+    q:
+      pt: "Você roda `kubectl create deployment web --image=nginx`. Coloque na ordem o que acontece."
+      en: "You run `kubectl create deployment web --image=nginx`. Put in order what happens."
+    steps:
+      pt:
+        - "O kubectl envia o pedido ao **kube-apiserver** (autenticação, autorização e admission)"
+        - "O objeto Deployment é gravado no **etcd**"
+        - "O **controller-manager** cria o ReplicaSet e os Pods (sem nó ainda)"
+        - "O **kube-scheduler** escolhe um nó para cada Pod"
+        - "O **kubelet** do nó pede ao runtime para iniciar os contêineres"
+      en:
+        - "kubectl sends the request to the **kube-apiserver** (authentication, authorization and admission)"
+        - "The Deployment object is stored in **etcd**"
+        - "The **controller-manager** creates the ReplicaSet and Pods (no node yet)"
+        - "The **kube-scheduler** picks a node for each Pod"
+        - "The node's **kubelet** asks the runtime to start the containers"
+    why:
+      pt: "Só o kube-apiserver fala com o etcd; os demais componentes observam a API (watch) e reagem. Saber esse fluxo diz onde olhar quando algo trava: Pod sem nó é o scheduler; Pod com nó que não sobe é o kubelet ou o runtime."
+      en: "Only the kube-apiserver talks to etcd; the other components watch the API and react. Knowing this flow tells you where to look when something stalls: a Pod with no node is the scheduler; a Pod with a node that will not start is the kubelet or runtime."
+    src: https://kubernetes.io/docs/concepts/overview/components/
+  - id: cka-cp-ports
+    type: card
+    q:
+      pt: "Quais portas o control plane usa por padrão?"
+      en: "Which ports does the control plane use by default?"
+    a:
+      pt: "**6443** kube-apiserver · **2379-2380** etcd (clientes e peers) · **10250** kubelet · **10259** kube-scheduler · **10257** kube-controller-manager. Os NodePorts ficam em **30000-32767**."
+      en: "**6443** kube-apiserver · **2379-2380** etcd (clients and peers) · **10250** kubelet · **10259** kube-scheduler · **10257** kube-controller-manager. NodePorts are **30000-32767**."
+    src: https://kubernetes.io/docs/reference/networking/ports-and-protocols/
+  - id: cka-cp-init
+    type: command
+    q:
+      pt: "Inicialize um control plane com o CIDR de Pods `10.244.0.0/16`."
+      en: "Initialize a control plane with the Pod CIDR `10.244.0.0/16`."
+    answer: [kubeadm, init, "--pod-network-cidr=10.244.0.0/16"]
+    alts:
+      - [kubeadm, init, "--pod-network-cidr", "10.244.0.0/16"]
+    extra: [join, reset, "--token", "--apiserver-advertise-address=10.0.0.10", "--pod-network-cidr", "10.244.0.0/16"]
+    why:
+      pt: "O CIDR de Pods precisa casar com o que o plugin de rede (CNI) espera. O `kubeadm init` imprime no fim o `kubeadm join` dos workers e os passos para configurar o `kubectl`."
+      en: "The Pod CIDR must match what your network plugin (CNI) expects. `kubeadm init` prints the workers' `kubeadm join` and the steps to set up `kubectl` at the end."
+    src: https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init/
+  - id: cka-cp-admin-conf
+    type: card
+    q:
+      pt: "Depois do `kubeadm init`, como configurar o `kubectl` do usuário comum?"
+      en: "After `kubeadm init`, how do you set up `kubectl` for a regular user?"
+    a:
+      pt: "Copie `/etc/kubernetes/admin.conf` para `$HOME/.kube/config` e ajuste o dono (`chown $(id -u):$(id -g)`). O `admin.conf` dá acesso total ao cluster: trate como senha."
+      en: "Copy `/etc/kubernetes/admin.conf` to `$HOME/.kube/config` and fix ownership (`chown $(id -u):$(id -g)`). `admin.conf` gives full cluster access: treat it like a password."
+    src: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/
+  - id: cka-cp-cni-needed
+    type: choice
+    q:
+      pt: "Logo após o `kubeadm init`, os nós estão `NotReady` e os Pods do CoreDNS ficam `Pending`. O que falta?"
+      en: "Right after `kubeadm init`, nodes are `NotReady` and CoreDNS Pods stay `Pending`. What is missing?"
+    options:
+      pt: ["Instalar um plugin de rede (CNI), como Calico, Cilium ou Flannel", "Reiniciar o kube-apiserver", "Aumentar a memória do nó", "Gerar um novo token de join"]
+      en: ["Install a network plugin (CNI) such as Calico, Cilium or Flannel", "Restart the kube-apiserver", "Add memory to the node", "Generate a new join token"]
+    correct: 0
+    why:
+      pt: "O kubeadm não instala rede de Pods. Sem CNI o kubelet reporta a rede como não pronta, o nó fica `NotReady` e o CoreDNS não é agendado."
+      en: "kubeadm does not install Pod networking. With no CNI the kubelet reports the network as not ready, the node stays `NotReady` and CoreDNS is not scheduled."
+    src: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#pod-network
+  - id: cka-cp-upgrade-order
+    type: order
+    q:
+      pt: "Atualize o **primeiro control plane** de 1.31 para 1.32. Ordene os passos."
+      en: "Upgrade the **first control plane** from 1.31 to 1.32. Order the steps."
+    steps:
+      pt:
+        - "Atualizar o pacote `kubeadm`"
+        - "`kubeadm upgrade plan`"
+        - "`kubeadm upgrade apply v1.32.x`"
+        - "`kubectl drain` do nó (`--ignore-daemonsets`)"
+        - "Atualizar os pacotes `kubelet` e `kubectl`"
+        - "`systemctl daemon-reload && systemctl restart kubelet`"
+        - "`kubectl uncordon` do nó"
+      en:
+        - "Upgrade the `kubeadm` package"
+        - "`kubeadm upgrade plan`"
+        - "`kubeadm upgrade apply v1.32.x`"
+        - "`kubectl drain` the node (`--ignore-daemonsets`)"
+        - "Upgrade the `kubelet` and `kubectl` packages"
+        - "`systemctl daemon-reload && systemctl restart kubelet`"
+        - "`kubectl uncordon` the node"
+    why:
+      pt: "O kubeadm vem primeiro porque é ele que sabe atualizar o cluster. O kubelet só é atualizado depois, já com o nó drenado. Nos outros control planes e nos workers o passo 3 é `kubeadm upgrade node`."
+      en: "kubeadm goes first because it is what knows how to upgrade the cluster. The kubelet is upgraded later, with the node already drained. On the other control planes and on workers step 3 is `kubeadm upgrade node`."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/
+  - id: cka-cp-upgrade-minor
+    type: choice
+    q:
+      pt: "Um cluster está na 1.30. Qual a rota de atualização suportada para chegar à 1.32?"
+      en: "A cluster is on 1.30. What is the supported upgrade path to reach 1.32?"
+    options:
+      pt: ["1.30 → 1.31 → 1.32, uma versão menor por vez", "1.30 → 1.32 direto, com `kubeadm upgrade apply`", "Reinstalar o cluster", "Só atualizar os workers"]
+      en: ["1.30 → 1.31 → 1.32, one minor version at a time", "1.30 → 1.32 directly with `kubeadm upgrade apply`", "Reinstall the cluster", "Only upgrade the workers"]
+    correct: 0
+    why:
+      pt: "O kubeadm não pula versões menores. Também vale a regra de compatibilidade: o kubelet não pode ser mais novo que o kube-apiserver, então o control plane é atualizado antes dos workers."
+      en: "kubeadm does not skip minor versions. The skew rule also applies: the kubelet cannot be newer than the kube-apiserver, so the control plane is upgraded before the workers."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/
+  - id: cka-cp-upgrade-worker
+    type: command
+    q:
+      pt: "No **worker**, depois de atualizar o pacote `kubeadm`, qual comando atualiza a configuração local do kubelet?"
+      en: "On a **worker**, after upgrading the `kubeadm` package, which command upgrades the local kubelet configuration?"
+    answer: [kubeadm, upgrade, node]
+    extra: [apply, plan, "v1.32.0", init]
+    why:
+      pt: "`kubeadm upgrade apply` é só no primeiro control plane. Nos demais nós (control planes extras e workers) é `kubeadm upgrade node`."
+      en: "`kubeadm upgrade apply` is only for the first control plane. On every other node (extra control planes and workers) it is `kubeadm upgrade node`."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/upgrading-linux-nodes/
+  - id: cka-cp-certs
+    type: command
+    q:
+      pt: "Veja quando os certificados do cluster expiram."
+      en: "Check when the cluster certificates expire."
+    answer: [kubeadm, certs, check-expiration]
+    extra: [renew, all, "--config", list, status]
+    why:
+      pt: "Os certificados de cliente e servidor do kubeadm valem 1 ano (a CA, 10). Atualizar o cluster com `kubeadm upgrade` renova todos. Para renovar à mão: `kubeadm certs renew all` e reinicie os Pods estáticos."
+      en: "kubeadm's client and server certificates last 1 year (the CA, 10). Upgrading with `kubeadm upgrade` renews them all. To renew by hand: `kubeadm certs renew all` and restart the static Pods."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-certs/
+  - id: cka-cp-etcd-restore
+    type: card
+    q:
+      pt: "Como restaurar o etcd de um snapshot num cluster kubeadm?"
+      en: "How do you restore etcd from a snapshot on a kubeadm cluster?"
+    a:
+      pt: "1) `etcdutl snapshot restore /backup/etcd.db --data-dir /var/lib/etcd-restore` (em versões antigas, `etcdctl snapshot restore`). 2) Edite `/etc/kubernetes/manifests/etcd.yaml` e aponte o volume `etcd-data` (hostPath) para o novo diretório. 3) O kubelet recria o Pod do etcd sozinho."
+      en: "1) `etcdutl snapshot restore /backup/etcd.db --data-dir /var/lib/etcd-restore` (on older versions, `etcdctl snapshot restore`). 2) Edit `/etc/kubernetes/manifests/etcd.yaml` and point the `etcd-data` volume (hostPath) to the new directory. 3) The kubelet recreates the etcd Pod by itself."
+    src: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#restoring-an-etcd-cluster
+  - id: cka-cp-crictl
+    type: command
+    q:
+      pt: "O `kubectl` não responde. Liste os contêineres do nó direto no runtime, inclusive os parados."
+      en: "`kubectl` is not responding. List the node's containers directly from the runtime, including stopped ones."
+    answer: [crictl, ps, "-a"]
+    extra: [docker, images, logs, pods, kubectl]
+    why:
+      pt: "O `crictl` fala com o runtime (containerd) pelo CRI e funciona mesmo com a API fora. É como você vê o `kube-apiserver` ou o `etcd` que caiu, e depois lê o motivo com `crictl logs <id>`."
+      en: "`crictl` talks to the runtime (containerd) over the CRI and works even with the API down. It is how you see a crashed `kube-apiserver` or `etcd`, then read the reason with `crictl logs <id>`."
+    src: https://kubernetes.io/docs/tasks/debug/debug-cluster/crictl/
+  - id: cka-cp-ha
+    type: card
+    q:
+      pt: "Quantos membros de etcd um cluster HA deve ter, e por quê?"
+      en: "How many etcd members should an HA cluster have, and why?"
+    a:
+      pt: "Um número **ímpar** (3 ou 5). O etcd precisa de **quórum** (maioria): com 3 membros tolera 1 falha; com 5, tolera 2. Com 4 não se ganha nada sobre 3, porque o quórum passa a ser 3. Topologias: *stacked* (etcd nos control planes) ou etcd externo."
+      en: "An **odd** number (3 or 5). etcd needs a **quorum** (majority): with 3 members it tolerates 1 failure; with 5, 2. Four gains nothing over 3, because quorum becomes 3. Topologies: *stacked* (etcd on the control planes) or external etcd."
+    src: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/

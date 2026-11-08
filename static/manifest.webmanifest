@@ -1,0 +1,10 @@
+{
+  "name": "mgdn · Estudo",
+  "short_name": "Estudo",
+  "description": "Kubernetes (CKA) e Linux com repetição espaçada",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#13284B",
+  "theme_color": "#13284B",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

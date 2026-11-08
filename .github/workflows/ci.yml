@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1" # varredura semanal: sai CVE nova sem commit novo
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:content
+      - run: npm test
+      - run: npm run build
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build (sem publicar)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: mgdn-study:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # Mesma política do ADR 0008 da plataforma: bloqueia CRITICAL com correção publicada.
+      - name: Trivy (bloqueia CRITICAL com correção)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: mgdn-study:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Smoke test (sobe e responde em /healthz)
+        run: |
+          docker run -d --name s -p 3000:3000 mgdn-study:ci
+          for i in $(seq 1 20); do curl -fsS localhost:3000/healthz && exit 0; sleep 1; done
+          docker logs s; exit 1
+      - name: Login no ghcr.io
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publicar
+        id: push
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/marcosdanight/mgdn-study:${{ github.sha }}
+            ghcr.io/marcosdanight/mgdn-study:latest
+          provenance: mode=max
+          cache-from: type=gha
+      - name: Digest publicado
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: echo "ghcr.io/marcosdanight/mgdn-study@${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"

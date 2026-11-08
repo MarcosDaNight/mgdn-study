@@ -1,0 +1,292 @@
+track: cka
+title: { pt: Preparação para a CKA, en: CKA preparation }
+units:
+  - id: cka-workloads
+    title: { pt: "Workloads e agendamento (15%)", en: "Workloads and scheduling (15%)" }
+    items:
+      - id: cka-pod-vs-deploy
+        type: card
+        q:
+          pt: Por que usar um Deployment em vez de criar Pods diretamente?
+          en: Why use a Deployment instead of creating Pods directly?
+        a:
+          pt: "Um Pod solto não é recriado se o nó cair. O Deployment cria um **ReplicaSet** que mantém o número de réplicas, e ainda dá rolling update e rollback."
+          en: "A bare Pod is not recreated if its node dies. A Deployment creates a **ReplicaSet** that keeps the replica count, and adds rolling updates and rollback."
+        src: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+      - id: cka-create-deploy
+        type: command
+        q:
+          pt: Crie um Deployment `web` com a imagem `nginx:1.27` e 3 réplicas.
+          en: Create a Deployment `web` with image `nginx:1.27` and 3 replicas.
+        answer: [kubectl, create, deployment, web, "--image=nginx:1.27", "--replicas=3"]
+        extra: [run, apply, "-f", expose, "--port=80"]
+        why:
+          pt: "Na prova, `kubectl create deployment` gera o objeto em segundos. Para partir de um YAML, acrescente `--dry-run=client -o yaml`."
+          en: "In the exam, `kubectl create deployment` builds the object in seconds. To start from YAML, add `--dry-run=client -o yaml`."
+        src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_deployment/
+      - id: cka-yaml-dryrun
+        type: command
+        q:
+          pt: Gere o YAML de um Pod `x` com a imagem `busybox`, sem criá-lo no cluster.
+          en: Generate the YAML for a Pod `x` with image `busybox` without creating it in the cluster.
+        answer: [kubectl, run, x, "--image=busybox", "--dry-run=client", "-o", yaml]
+        extra: [create, apply, "--dry-run=server", "-o", json]
+        why:
+          pt: "É o atalho mais valioso da prova: `--dry-run=client -o yaml` entrega um esqueleto para editar, em vez de escrever o YAML do zero."
+          en: "The most valuable exam shortcut: `--dry-run=client -o yaml` gives you a skeleton to edit instead of writing YAML from scratch."
+        src: https://kubernetes.io/docs/reference/kubectl/quick-reference/
+      - id: cka-rollout-undo
+        type: command
+        q:
+          pt: Desfaça o último rollout do Deployment `web`.
+          en: Undo the last rollout of Deployment `web`.
+        answer: [kubectl, rollout, undo, deployment/web]
+        extra: [status, history, restart, "--to-revision=1"]
+        why:
+          pt: "`rollout status` acompanha, `rollout history` lista as revisões e `rollout undo` volta à anterior (ou a uma específica com `--to-revision`)."
+          en: "`rollout status` follows it, `rollout history` lists revisions and `rollout undo` goes back to the previous one (or a specific one with `--to-revision`)."
+        src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_undo/
+      - id: cka-taint-effect
+        type: choice
+        q:
+          pt: Um nó tem o taint `dedicated=gpu:NoSchedule`. O que acontece com um Pod novo sem toleration?
+          en: A node has the taint `dedicated=gpu:NoSchedule`. What happens to a new Pod with no toleration?
+        options:
+          pt: ["Não é agendado nesse nó", "É agendado e depois removido", "É agendado normalmente", "Fica Pending para sempre em qualquer nó"]
+          en: ["It is not scheduled on that node", "It is scheduled and then evicted", "It is scheduled normally", "It stays Pending forever on every node"]
+        correct: 0
+        why:
+          pt: "`NoSchedule` impede novos Pods sem toleration, mas não remove os que já estão lá (isso é `NoExecute`). O Pod só fica Pending se **nenhum** nó o aceitar."
+          en: "`NoSchedule` blocks new Pods without a toleration but does not remove existing ones (that is `NoExecute`). The Pod is Pending only if **no** node accepts it."
+        src: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+      - id: cka-configmap-use
+        type: card
+        q:
+          pt: De que duas formas principais um Pod consome um ConfigMap?
+          en: What are the two main ways a Pod consumes a ConfigMap?
+        a:
+          pt: "Como **variáveis de ambiente** (`env`/`envFrom`) ou como **arquivos** em um volume. Variáveis são lidas só na criação do contêiner; volumes são atualizados no Pod em execução (com algum atraso)."
+          en: "As **environment variables** (`env`/`envFrom`) or as **files** in a volume. Env vars are read only at container start; volumes are refreshed in the running Pod (with some delay)."
+        src: https://kubernetes.io/docs/concepts/configuration/configmap/
+  - id: cka-networking
+    title: { pt: "Serviços e rede (20%)", en: "Services and networking (20%)" }
+    items:
+      - id: cka-svc-types
+        type: choice
+        q:
+          pt: Qual tipo de Service expõe o app em uma porta de cada nó do cluster?
+          en: Which Service type exposes the app on a port of every cluster node?
+        options:
+          pt: [NodePort, ClusterIP, ExternalName, Headless]
+          en: [NodePort, ClusterIP, ExternalName, Headless]
+        correct: 0
+        why:
+          pt: "NodePort abre uma porta (30000-32767) em todos os nós. ClusterIP é só interno (o padrão). LoadBalancer vem por cima do NodePort, com balanceador externo."
+          en: "NodePort opens a port (30000-32767) on every node. ClusterIP is internal only (the default). LoadBalancer builds on NodePort with an external balancer."
+        src: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+      - id: cka-expose
+        type: command
+        q:
+          pt: Exponha o Deployment `web` na porta 80 como Service.
+          en: Expose Deployment `web` on port 80 as a Service.
+        answer: [kubectl, expose, deployment, web, "--port=80"]
+        extra: [create, "--type=NodePort", run, "--target-port=8080"]
+        why:
+          pt: "`expose` copia o selector do Deployment. Sem `--type`, o padrão é ClusterIP."
+          en: "`expose` copies the Deployment's selector. Without `--type` the default is ClusterIP."
+        src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_expose/
+      - id: cka-svc-no-endpoints
+        type: card
+        q:
+          pt: Um Service existe, mas `curl` nele dá timeout. Qual é a primeira checagem?
+          en: A Service exists but `curl` to it times out. What is the first check?
+        a:
+          pt: "`kubectl get endpoints <svc>` (ou `endpointslices`). Se estiver **vazio**, o `selector` do Service não casa com os labels dos Pods (ou os Pods não estão Ready). Compare `kubectl describe svc` com `kubectl get pods --show-labels`."
+          en: "`kubectl get endpoints <svc>` (or `endpointslices`). If it is **empty**, the Service `selector` does not match the Pods' labels (or the Pods are not Ready). Compare `kubectl describe svc` with `kubectl get pods --show-labels`."
+        src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/
+      - id: cka-dns-fqdn
+        type: card
+        q:
+          pt: Qual o nome DNS completo de um Service `api` no namespace `prod`?
+          en: What is the full DNS name of a Service `api` in namespace `prod`?
+        a:
+          pt: "`api.prod.svc.cluster.local`. Do mesmo namespace basta `api`; de outro, use `api.prod`."
+          en: "`api.prod.svc.cluster.local`. From the same namespace `api` is enough; from another, use `api.prod`."
+        src: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+      - id: cka-netpol
+        type: choice
+        q:
+          pt: Aplicar uma NetworkPolicy que seleciona um Pod, sem regras de `ingress`, faz o quê?
+          en: Applying a NetworkPolicy that selects a Pod, with `Ingress` in `policyTypes` but no ingress rules, does what?
+        options:
+          pt: ["Bloqueia todo o tráfego de entrada desse Pod", "Libera todo o tráfego de entrada", "Não muda nada", "Bloqueia entrada e saída"]
+          en: ["Blocks all incoming traffic to that Pod", "Allows all incoming traffic", "Changes nothing", "Blocks both ingress and egress"]
+        correct: 0
+        why:
+          pt: "Pods são abertos até serem selecionados por uma NetworkPolicy. Com `Ingress` em `policyTypes` e nenhuma regra, nada é permitido. Isso só funciona se o CNI aplicar NetworkPolicy (o Flannel puro, não)."
+          en: "Pods are open until a NetworkPolicy selects them. With `Ingress` in `policyTypes` and no rules, nothing is allowed. This only works if the CNI enforces NetworkPolicy (plain Flannel does not)."
+        src: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+  - id: cka-storage
+    title: { pt: "Armazenamento (10%)", en: "Storage (10%)" }
+    items:
+      - id: cka-pv-pvc
+        type: card
+        q:
+          pt: Qual a relação entre PV, PVC e StorageClass?
+          en: How do PV, PVC and StorageClass relate?
+        a:
+          pt: "O **PV** é o volume (recurso do cluster). O **PVC** é o pedido de um usuário, que o Kubernetes liga a um PV compatível. A **StorageClass** permite o *provisionamento dinâmico*: o PVC cria o PV sob demanda."
+          en: "The **PV** is the volume (a cluster resource). The **PVC** is a user's request, which Kubernetes binds to a matching PV. The **StorageClass** enables *dynamic provisioning*: the PVC creates the PV on demand."
+        src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+      - id: cka-accessmodes
+        type: choice
+        q:
+          pt: Qual accessMode permite que vários nós montem o volume com escrita?
+          en: Which accessMode lets many nodes mount the volume read-write?
+        options:
+          pt: [ReadWriteMany, ReadWriteOnce, ReadOnlyMany, ReadWriteOncePod]
+          en: [ReadWriteMany, ReadWriteOnce, ReadOnlyMany, ReadWriteOncePod]
+        correct: 0
+        why:
+          pt: "RWO: um nó escreve. RWX: vários nós escrevem (NFS, CephFS). ROX: vários só leem. RWOP: um único Pod."
+          en: "RWO: one node writes. RWX: many nodes write (NFS, CephFS). ROX: many read only. RWOP: a single Pod."
+        src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+      - id: cka-pvc-pending
+        type: card
+        q:
+          pt: Um PVC está em `Pending`. Onde olhar primeiro?
+          en: A PVC is `Pending`. Where do you look first?
+        a:
+          pt: "`kubectl describe pvc <nome>`, na seção **Events**. As causas comuns: nenhum PV compatível (tamanho, accessMode ou storageClass), StorageClass inexistente, ou `WaitForFirstConsumer` esperando um Pod que o use."
+          en: "`kubectl describe pvc <name>`, **Events** section. Common causes: no matching PV (size, accessMode or storageClass), a missing StorageClass, or `WaitForFirstConsumer` waiting for a Pod to use it."
+        src: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+  - id: cka-architecture
+    title: { pt: "Arquitetura e instalação (25%)", en: "Cluster architecture and install (25%)" }
+    items:
+      - id: cka-controlplane
+        type: card
+        q:
+          pt: Quais são os componentes do control plane e o que cada um faz?
+          en: What are the control plane components and what does each one do?
+        a:
+          pt: "**kube-apiserver**: porta de entrada da API. **etcd**: guarda o estado do cluster. **kube-scheduler**: escolhe o nó de cada Pod. **kube-controller-manager**: roda os controladores que levam o estado atual ao desejado."
+          en: "**kube-apiserver**: the API front door. **etcd**: stores cluster state. **kube-scheduler**: picks a node for each Pod. **kube-controller-manager**: runs the controllers that drive current state toward desired state."
+        src: https://kubernetes.io/docs/concepts/overview/components/
+      - id: cka-static-pod-path
+        type: card
+        q:
+          pt: Onde ficam os manifestos dos Pods estáticos de um cluster kubeadm?
+          en: Where do the static Pod manifests live in a kubeadm cluster?
+        a:
+          pt: "`/etc/kubernetes/manifests/`. O kubelet observa o diretório e sobe o que estiver lá: é assim que `kube-apiserver`, `etcd`, `scheduler` e `controller-manager` rodam. Editar o arquivo reinicia o componente."
+          en: "`/etc/kubernetes/manifests/`. The kubelet watches that directory and runs whatever is there: this is how `kube-apiserver`, `etcd`, `scheduler` and `controller-manager` run. Editing the file restarts the component."
+        src: https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/
+      - id: cka-rbac
+        type: command
+        q:
+          pt: Crie um Role `leitor` que permite `get` e `list` em `pods` no namespace atual.
+          en: Create a Role `reader` that allows `get` and `list` on `pods` in the current namespace.
+        answer: [kubectl, create, role, reader, "--verb=get,list", "--resource=pods"]
+        extra: [clusterrole, rolebinding, "--user=ana", "--verb=*"]
+        why:
+          pt: "Um Role é por namespace; ClusterRole é do cluster inteiro. O Role só vale depois de um **RoleBinding** que o ligue a um usuário, grupo ou ServiceAccount."
+          en: "A Role is namespaced; a ClusterRole is cluster-wide. The Role only takes effect once a **RoleBinding** ties it to a user, group or ServiceAccount."
+        src: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+      - id: cka-can-i
+        type: command
+        q:
+          pt: Verifique se você pode apagar Deployments no namespace `prod`.
+          en: Check whether you can delete Deployments in namespace `prod`.
+        answer: [kubectl, auth, can-i, delete, deployments, "-n", prod]
+        extra: [get, "--as=ana", create, "--all-namespaces"]
+        why:
+          pt: "`auth can-i` responde sim/não. Com `--as=<usuário>` você testa o RBAC de outra identidade sem trocar de kubeconfig."
+          en: "`auth can-i` answers yes/no. With `--as=<user>` you test another identity's RBAC without switching kubeconfig."
+        src: https://kubernetes.io/docs/reference/access-authn-authz/authorization/#checking-api-access
+      - id: cka-etcd-snapshot
+        type: command
+        q:
+          pt: Salve um snapshot do etcd em `/tmp/etcd.db`. (Os certificados já estão nas variáveis de ambiente.)
+          en: Save an etcd snapshot to `/tmp/etcd.db`. (The certificates are already in environment variables.)
+        answer: [etcdctl, snapshot, save, /tmp/etcd.db]
+        extra: [restore, status, "--data-dir", member, list]
+        why:
+          pt: "Backup e restore do etcd caem com frequência na prova. Use `ETCDCTL_API=3` e passe `--endpoints`, `--cacert`, `--cert` e `--key`. O restore usa `etcdctl snapshot restore ... --data-dir`."
+          en: "etcd backup and restore show up often in the exam. Use `ETCDCTL_API=3` and pass `--endpoints`, `--cacert`, `--cert` and `--key`. Restore uses `etcdctl snapshot restore ... --data-dir`."
+        src: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/
+      - id: cka-kubeadm-join
+        type: card
+        q:
+          pt: O token de `kubeadm join` expirou. Como gerar um novo comando de join?
+          en: The `kubeadm join` token expired. How do you get a fresh join command?
+        a:
+          pt: "No control plane: `kubeadm token create --print-join-command`. Os tokens expiram em 24 h por padrão."
+          en: "On the control plane: `kubeadm token create --print-join-command`. Tokens expire after 24 h by default."
+        src: https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-token/
+  - id: cka-troubleshooting
+    title: { pt: "Diagnóstico de problemas (30%)", en: "Troubleshooting (30%)" }
+    items:
+      - id: cka-debug-flow
+        type: card
+        q:
+          pt: Um Pod não sobe. Qual a sequência de comandos para investigar?
+          en: A Pod will not start. What command sequence do you use to investigate?
+        a:
+          pt: "1) `kubectl get pod` (status). 2) `kubectl describe pod` (**Events**: agendamento, pull de imagem, probes). 3) `kubectl logs <pod>` (e `--previous` se reiniciou). 4) `kubectl get events --sort-by=.lastTimestamp`. Vá do mais barato ao mais caro."
+          en: "1) `kubectl get pod` (status). 2) `kubectl describe pod` (**Events**: scheduling, image pull, probes). 3) `kubectl logs <pod>` (and `--previous` if it restarted). 4) `kubectl get events --sort-by=.lastTimestamp`. Go from cheapest to costliest."
+        src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+      - id: cka-crashloop
+        type: choice
+        q:
+          pt: Um Pod está em `CrashLoopBackOff`. O que isso significa?
+          en: A Pod is in `CrashLoopBackOff`. What does that mean?
+        options:
+          pt: ["O contêiner inicia, falha e o kubelet o reinicia com espera crescente", "A imagem não foi encontrada", "Nenhum nó tem recursos para agendar", "O Pod foi apagado e está sendo recriado"]
+          en: ["The container starts, fails, and the kubelet restarts it with growing back-off", "The image was not found", "No node has resources to schedule it", "The Pod was deleted and is being recreated"]
+        correct: 0
+        why:
+          pt: "É o app que está caindo (erro de configuração, dependência fora do ar, probe errada). Veja `kubectl logs --previous`. Imagem inexistente seria `ImagePullBackOff`; sem recursos, `Pending`."
+          en: "The app itself is crashing (bad config, dependency down, wrong probe). Check `kubectl logs --previous`. A missing image would be `ImagePullBackOff`; no resources, `Pending`."
+        src: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+      - id: cka-logs-previous
+        type: command
+        q:
+          pt: Veja os logs da execução anterior (que caiu) do Pod `api`.
+          en: View the logs of the previous (crashed) run of Pod `api`.
+        answer: [kubectl, logs, api, "--previous"]
+        extra: ["-f", describe, "--tail=10", "-c"]
+        why:
+          pt: "Sem `--previous`, você vê o contêiner novo, que muitas vezes ainda não tem nada. Em Pods com vários contêineres, acrescente `-c <nome>`."
+          en: "Without `--previous` you see the new container, which often has nothing yet. For multi-container Pods add `-c <name>`."
+        src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/
+      - id: cka-notready
+        type: card
+        q:
+          pt: Um nó está `NotReady`. Qual a investigação, do cluster ao nó?
+          en: A node is `NotReady`. What is the investigation, from cluster to node?
+        a:
+          pt: "1) `kubectl describe node` (Conditions e Events). 2) SSH no nó. 3) `systemctl status kubelet` e `journalctl -u kubelet`. 4) Confira o runtime (`systemctl status containerd`), a rede e o disco/memória. Quase sempre o kubelet parou ou não fala com o API server."
+          en: "1) `kubectl describe node` (Conditions and Events). 2) SSH to the node. 3) `systemctl status kubelet` and `journalctl -u kubelet`. 4) Check the runtime (`systemctl status containerd`), network and disk/memory. Most often the kubelet stopped or cannot reach the API server."
+        src: https://kubernetes.io/docs/tasks/debug/debug-cluster/
+      - id: cka-top
+        type: command
+        q:
+          pt: Mostre o consumo de CPU e memória dos nós.
+          en: Show CPU and memory usage of the nodes.
+        answer: [kubectl, top, nodes]
+        extra: [pods, get, describe, "-A"]
+        why:
+          pt: "`kubectl top` depende do **metrics-server**. Se o comando falha com 'Metrics API not available', ele não está instalado ou não está saudável."
+          en: "`kubectl top` depends on **metrics-server**. If it fails with 'Metrics API not available', it is not installed or not healthy."
+        src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_top/
+      - id: cka-explain
+        type: command
+        q:
+          pt: Consulte a documentação do campo `spec.containers.livenessProbe` direto no terminal.
+          en: Look up the docs for the `spec.containers.livenessProbe` field right in the terminal.
+        answer: [kubectl, explain, pod.spec.containers.livenessProbe]
+        extra: [describe, get, "-o", yaml, "--recursive"]
+        why:
+          pt: "Na prova você pode abrir a documentação oficial, mas `kubectl explain` é mais rápido para lembrar um campo. Use `--recursive` para ver a árvore inteira."
+          en: "In the exam you may open the official docs, but `kubectl explain` is faster for recalling a field. Use `--recursive` for the whole tree."
+        src: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_explain/
